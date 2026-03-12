@@ -37,6 +37,7 @@ struct RifleConfig {
     // Correction preference
     uint8_t  correction_unit   = static_cast<uint8_t>(ballistic::CorrectionUnit::MOA);
     float    click_size_moa    = 0.25f;   // turret click value in MOA
+    uint8_t  click_unit         = 0;       // 0=MOA, 1=MRAD
 
     // Coriolis
     float    latitude_deg      = 0.0f;

@@ -141,7 +141,13 @@ td input{margin:0}
 <option value="cm">cm</option>
 <option value="CLICKS">Turret Clicks</option>
 </select></div>
-<div><label>Click Size (MOA)</label><input id="click_size" type="number" step="0.01" value="0.25"></div>
+<div><label id="lbl_click">Click Size (MOA)</label>
+<div class="row" style="gap:4px">
+<input id="click_size" type="number" step="0.01" value="0.25" style="flex:2">
+<select id="click_unit" onchange="clickUnitChanged()" style="flex:1;min-width:60px">
+<option value="0">MOA</option><option value="1">MRAD</option>
+</select>
+</div></div>
 </div>
 
 <div class="row">
@@ -215,6 +221,13 @@ const CF={
  temperature:['f_c','c_f'],pressure:['inhg_hpa','hpa_inhg']
 };
 
+const MOA_PER_MRAD=3.43774677;
+function clickUnitChanged(){
+ let nu=+$('click_unit').value,v=+$('click_size').value;
+ if(nu===1){v=+(v/MOA_PER_MRAD).toFixed(3);$('lbl_click').textContent='Click Size (MRAD)';}
+ else{v=+(v*MOA_PER_MRAD).toFixed(3);$('lbl_click').textContent='Click Size (MOA)';}
+ $('click_size').value=v;
+}
 function $(id){return document.getElementById(id)}
 function toggle(id){
  let s=$('hdr-'+id),d=$(id);
@@ -294,7 +307,9 @@ function gatherConfig(){
   length:toImp('length',+$('length').value), mv:toImp('velocity',+$('mv').value),
   sh:toImp('length',+$('sh').value), twist:toImp('length',+$('twist').value),
   zero:toImp('distance',+$('zero').value), lat:+$('lat').value,
-  corr_unit:$('corr_unit').value, click_size:+$('click_size').value,
+  corr_unit:$('corr_unit').value,
+  click_size:(+$('click_unit').value===1)?(+$('click_size').value*MOA_PER_MRAD):(+$('click_size').value),
+  click_unit:+$('click_unit').value,
   cant_offset:+$('cant_offset').value, cant_sens:+$('cant_sens').value,
   multi_bc:$('multi_bc').checked,
   use_ps:$('use_ps').checked,
@@ -378,7 +393,11 @@ async function loadConfig(){
    $('length').value=dsp('length',c.length||1.35);$('mv').value=dsp('velocity',c.mv||2710);
    $('sh').value=dsp('length',c.sh||1.5);$('twist').value=dsp('length',c.twist||8);
    $('zero').value=dsp('distance',c.zero||100);$('lat').value=c.lat||0;
-   $('corr_unit').value=c.corr_unit||'MOA';$('click_size').value=c.click_size||.25;
+   $('corr_unit').value=c.corr_unit||'MOA';
+   let cu=c.click_unit||0;$('click_unit').value=cu;
+   let csv=c.click_size||.25;
+   $('click_size').value=cu===1?+(csv/MOA_PER_MRAD).toFixed(3):csv;
+   $('lbl_click').textContent=cu===1?'Click Size (MRAD)':'Click Size (MOA)';
    $('cant_offset').value=c.cant_offset||0;$('cant_sens').value=c.cant_sens||1;
    $('multi_bc').checked=!!c.multi_bc;toggleMultiBC();
    if(c.bc_points){

@@ -49,6 +49,7 @@ static void handleGetConfig(AsyncWebServerRequest* req) {
     cfg["corr_unit"]  = ballistic::correctionUnitLabel(
         static_cast<ballistic::CorrectionUnit>(g_rifle.correction_unit));
     cfg["click_size"] = g_rifle.click_size_moa;
+    cfg["click_unit"]  = g_rifle.click_unit;
     cfg["cant_offset"] = g_rifle.cant_offset;
     cfg["cant_sens"]   = g_rifle.cant_sensitivity;
     cfg["cant_calibrating"] = g_sensors.cantCalibrating();
@@ -120,6 +121,7 @@ static void handleSave(AsyncWebServerRequest* req, uint8_t* data,
         g_rifle.correction_unit= static_cast<uint8_t>(
             ballistic::correctionUnitFromStr(cu_str));
         g_rifle.click_size_moa = cfg["click_size"] | 0.25f;
+        g_rifle.click_unit      = cfg["click_unit"]  | 0;
         g_rifle.cant_offset     = cfg["cant_offset"] | 0.0f;
         g_rifle.cant_sensitivity= cfg["cant_sens"]   | 1.0f;
         g_rifle.multi_bc       = cfg["multi_bc"]   | false;
