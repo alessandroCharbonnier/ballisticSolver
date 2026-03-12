@@ -2,6 +2,7 @@
 #include "web_ui.h"
 #include "config.h"
 #include "storage.h"
+#include "sensors.h"
 
 #include <WiFi.h>
 #include <DNSServer.h>
@@ -13,6 +14,9 @@ extern RifleConfig  g_rifle;
 extern StageConfig  g_stages;
 extern Storage      g_storage;
 extern volatile bool g_config_changed;
+
+// Sensors (for cant calibration)
+extern Sensors g_sensors;
 
 static AsyncWebServer* s_server = nullptr;
 static DNSServer*      s_dns    = nullptr;
@@ -45,6 +49,9 @@ static void handleGetConfig(AsyncWebServerRequest* req) {
     cfg["corr_unit"]  = ballistic::correctionUnitLabel(
         static_cast<ballistic::CorrectionUnit>(g_rifle.correction_unit));
     cfg["click_size"] = g_rifle.click_size_moa;
+    cfg["cant_offset"] = g_rifle.cant_offset;
+    cfg["cant_sens"]   = g_rifle.cant_sensitivity;
+    cfg["cant_calibrating"] = g_sensors.cantCalibrating();
     cfg["multi_bc"]   = g_rifle.multi_bc;
     cfg["use_ps"]     = g_rifle.use_powder_sens;
     JsonObject units = cfg["units"].to<JsonObject>();
@@ -113,6 +120,8 @@ static void handleSave(AsyncWebServerRequest* req, uint8_t* data,
         g_rifle.correction_unit= static_cast<uint8_t>(
             ballistic::correctionUnitFromStr(cu_str));
         g_rifle.click_size_moa = cfg["click_size"] | 0.25f;
+        g_rifle.cant_offset     = cfg["cant_offset"] | 0.0f;
+        g_rifle.cant_sensitivity= cfg["cant_sens"]   | 1.0f;
         g_rifle.multi_bc       = cfg["multi_bc"]   | false;
         g_rifle.use_powder_sens= cfg["use_ps"]     | false;
         if (!cfg["units"].isNull()) {
@@ -213,6 +222,11 @@ void WebServer_::begin() {
 
         s_server->on("/api/wifi/off", HTTP_POST, [](AsyncWebServerRequest* req) {
             handleWifiOff(req);
+        });
+
+        s_server->on("/api/cant/calibrate", HTTP_POST, [](AsyncWebServerRequest* req) {
+            g_sensors.startCantCalibration();
+            req->send(200, "text/plain", "Calibration started");
         });
 
         // Captive portal: redirect any unknown URL to root

@@ -143,6 +143,15 @@ td input{margin:0}
 </select></div>
 <div><label>Click Size (MOA)</label><input id="click_size" type="number" step="0.01" value="0.25"></div>
 </div>
+
+<div class="row">
+<div><label>Cant Offset (&deg;)</label><input id="cant_offset" type="number" step="0.1" value="0" readonly style="opacity:0.6"></div>
+<div><label>Cant Sensitivity (&deg;)</label><input id="cant_sens" type="number" step="0.1" value="1"></div>
+</div>
+<div style="margin:6px 0 4px">
+<button class="btn" onclick="calibrateCant()" id="btn_cant_cal">CALIBRATE CANT</button>
+<span id="cant_cal_status" style="color:#8b949e;font-size:11px;margin-left:8px"></span>
+</div>
 </div>
 
 <!-- ═══════════════ STAGE EDITOR SECTION ═══════════════ -->
@@ -286,6 +295,7 @@ function gatherConfig(){
   sh:toImp('length',+$('sh').value), twist:toImp('length',+$('twist').value),
   zero:toImp('distance',+$('zero').value), lat:+$('lat').value,
   corr_unit:$('corr_unit').value, click_size:+$('click_size').value,
+  cant_offset:+$('cant_offset').value, cant_sens:+$('cant_sens').value,
   multi_bc:$('multi_bc').checked,
   use_ps:$('use_ps').checked,
   units:{distance:U.distance,velocity:U.velocity,weight:U.weight,
@@ -318,7 +328,34 @@ async function disableWifi(){
  try{await fetch('/api/wifi/off',{method:'POST'});toast('WiFi shutting down...');}
  catch(e){toast('Sent shutdown request')}
 }
-
+async function calibrateCant(){
+ let btn=$('btn_cant_cal'),st=$('cant_cal_status');
+ btn.disabled=true;
+ st.textContent='Calibrating... (hold rifle level)';
+ try{
+  let r=await fetch('/api/cant/calibrate',{method:'POST'});
+  if(!r.ok){st.textContent='Failed ('+r.status+')';btn.disabled=false;return;}
+  let attempts=0;
+  let poll=setInterval(async()=>{
+   attempts++;
+   try{
+    let cr=await fetch('/api/config');
+    if(cr.ok){
+     let d=await cr.json();
+     if(d.config && !d.config.cant_calibrating){
+      let off=d.config.cant_offset||0;
+      $('cant_offset').value=off.toFixed(1);
+      st.textContent='Done! Offset: '+off.toFixed(1)+'\u00b0';
+      clearInterval(poll);btn.disabled=false;
+     } else {
+      st.textContent='Calibrating... ('+attempts+'s)';
+     }
+    }
+   }catch(e){}
+   if(attempts>=35){clearInterval(poll);st.textContent='Timeout';btn.disabled=false;}
+  },1000);
+ }catch(e){st.textContent='Error: '+e.message;btn.disabled=false;}
+}
 async function loadConfig(){
  try{
   let r=await fetch('/api/config');
@@ -342,6 +379,7 @@ async function loadConfig(){
    $('sh').value=dsp('length',c.sh||1.5);$('twist').value=dsp('length',c.twist||8);
    $('zero').value=dsp('distance',c.zero||100);$('lat').value=c.lat||0;
    $('corr_unit').value=c.corr_unit||'MOA';$('click_size').value=c.click_size||.25;
+   $('cant_offset').value=c.cant_offset||0;$('cant_sens').value=c.cant_sens||1;
    $('multi_bc').checked=!!c.multi_bc;toggleMultiBC();
    if(c.bc_points){
     c.bc_points.forEach((p,i)=>{

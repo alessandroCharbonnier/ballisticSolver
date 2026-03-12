@@ -63,6 +63,45 @@ void Sensors::update() {
     if (data_.mpu_ok) {
         sensors_event_t a, g, temp;
         s_mpu.getEvent(&a, &g, &temp);
-        data_.cant_deg = atan2f(a.acceleration.y, a.acceleration.z) * 180.0f / (float)M_PI;
+        float raw = atan2f(a.acceleration.y, a.acceleration.z) * 180.0f / (float)M_PI;
+
+        // 1D Kalman filter
+        if (!kf_init_) {
+            kf_x_ = raw;
+            kf_p_ = 1.0f;
+            kf_init_ = true;
+        } else {
+            // Predict
+            kf_p_ += KF_Q;
+            // Update
+            float k = kf_p_ / (kf_p_ + KF_R);
+            kf_x_ += k * (raw - kf_x_);
+            kf_p_ *= (1.0f - k);
+        }
+        data_.cant_deg = kf_x_;
+
+        // Cant auto-calibration accumulator
+        if (calib_remaining_ > 0) {
+            calib_accum_ += data_.cant_deg;
+            calib_remaining_--;
+            if (calib_remaining_ == 0) {
+                calib_result_ = calib_accum_ / (float)cfg::CANT_CALIB_SAMPLES;
+                calib_done_ = true;
+            }
+        }
     }
+}
+
+void Sensors::startCantCalibration() {
+    calib_remaining_ = cfg::CANT_CALIB_SAMPLES;
+    calib_accum_     = 0.0f;
+    calib_done_      = false;
+}
+
+bool Sensors::cantCalibrationDone() {
+    if (calib_done_) {
+        calib_done_ = false;
+        return true;
+    }
+    return false;
 }

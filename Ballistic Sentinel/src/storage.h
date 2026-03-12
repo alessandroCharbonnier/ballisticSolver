@@ -41,6 +41,10 @@ struct RifleConfig {
     // Coriolis
     float    latitude_deg      = 0.0f;
 
+    // Cant calibration
+    float    cant_offset       = 0.0f;  // calibration zero offset (degrees)
+    float    cant_sensitivity  = 1.0f;  // threshold to signal "level" (degrees)
+
     // Per-unit display preferences (0 = imperial, 1 = metric)
     uint8_t  unit_distance     = 0;   // 0=yd, 1=m
     uint8_t  unit_velocity     = 0;   // 0=fps, 1=m/s

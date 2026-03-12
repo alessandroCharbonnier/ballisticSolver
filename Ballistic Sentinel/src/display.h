@@ -28,6 +28,7 @@ public:
     void setMenuCursor(uint8_t cursor);
     void setWifiOn(bool on);
     void setCant(float cant_deg);
+    void setCantCalibration(float offset, float sensitivity);
     void showSleep();
 
     // --- Data setters (called from main loop) ---
@@ -59,7 +60,10 @@ private:
     uint8_t  app_state_    = APP_STATE_MENU;
     uint8_t  menu_cursor_  = 0;
     bool     wifi_menu_on_ = false;
-    float    cant_deg_     = 0.0f;
+    float    cant_deg_        = 0.0f;
+    float    cant_offset_     = 0.0f;
+    float    cant_sensitivity_= 1.0f;
+    bool     inverted_        = false;
 
     // Correction display
     float    v_corr_       = 0.0f;

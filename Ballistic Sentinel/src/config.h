@@ -85,7 +85,8 @@ constexpr uint8_t DISPLAY_HEIGHT   = 64;
 // ---------------------------------------------------------------------------
 constexpr uint16_t CALC_INTERVAL_MS = 1000;   // recalculate every 1 s
 constexpr uint16_t DISPLAY_FPS      = 10;     // display refresh rate
-constexpr uint16_t SENSOR_INTERVAL_MS = 1000; // sensor read interval
+constexpr uint16_t SENSOR_INTERVAL_MS = 200;  // sensor read interval (5 Hz)
+constexpr uint8_t  CANT_CALIB_SAMPLES = 20;   // samples to average for cant calibration
 
 // ---------------------------------------------------------------------------
 //  NVS Storage Namespace

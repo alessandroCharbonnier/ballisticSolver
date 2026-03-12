@@ -23,7 +23,7 @@
 
 static Display     g_display;
 static Input       g_input;
-static Sensors     g_sensors;
+Sensors            g_sensors;
 static WindSensor  g_wind;
 Storage            g_storage;
 static WebServer_  g_web;
@@ -77,6 +77,8 @@ static void updateDisplay() {
         const auto& sd = g_sensors.data();
         g_display.setSensors(sd.temperature_f, sd.pressure_inhg, sd.humidity_pct);
         g_display.setCant(sd.cant_deg);
+        g_display.setCantCalibration(g_rifle.cant_offset,
+                                      g_rifle.cant_sensitivity);
     }
 
     g_display.setWifiActive(g_web.isActive());
@@ -176,6 +178,14 @@ void loop() {
 
     // ── Captive portal DNS ────────────────────────────────────────────────
     g_web.processDNS();
+
+    // ── Cant calibration completion ───────────────────────────────────────
+    if (g_sensors.cantCalibrationDone()) {
+        g_rifle.cant_offset = g_sensors.cantCalibrationResult();
+        g_storage.save(g_rifle, g_stages);
+        Serial.printf("[main] Cant calibrated: offset=%.2f\n",
+                      (double)g_rifle.cant_offset);
+    }
 
     // ── Sensor read (1 Hz) ────────────────────────────────────────────────
     if (now - s_last_sensor >= cfg::SENSOR_INTERVAL_MS) {

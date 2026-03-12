@@ -1,6 +1,7 @@
 #include "display.h"
 #include <cstdio>
 #include <cstring>
+#include <cmath>
 
 // ── Fonts (all monospace) ──────────────────────────────────────────────────
 // Small  : u8g2_font_5x8_mf       – 5×8   (header / sensor bar)
@@ -27,6 +28,18 @@ void Display::update() {
         drawSensorBar();
     }
     u8g2_.sendBuffer();
+
+    // Hardware-invert the display when cant is within the sensitivity
+    // threshold — gives the shooter a clear "you're level" signal.
+    bool level = (app_state_ != APP_STATE_MENU) &&
+                 (fabsf(cant_deg_ - cant_offset_) <= cant_sensitivity_);
+    if (level != inverted_) {
+        inverted_ = level;
+        u8x8_t* u8x8 = u8g2_.getU8x8();
+        u8x8_cad_StartTransfer(u8x8);
+        u8x8_cad_SendCmd(u8x8, inverted_ ? 0xA7 : 0xA6);
+        u8x8_cad_EndTransfer(u8x8);
+    }
 }
 
 // ── Data setters ───────────────────────────────────────────────────────────
@@ -70,6 +83,10 @@ void Display::setAppState(uint8_t state) { app_state_ = state; }
 void Display::setMenuCursor(uint8_t cursor) { menu_cursor_ = cursor; }
 void Display::setWifiOn(bool on) { wifi_menu_on_ = on; }
 void Display::setCant(float cant_deg) { cant_deg_ = cant_deg; }
+void Display::setCantCalibration(float offset, float sensitivity) {
+    cant_offset_ = offset;
+    cant_sensitivity_ = sensitivity;
+}
 
 void Display::showSleep() {
     u8g2_.clearBuffer();
@@ -111,11 +128,11 @@ void Display::drawCantSlider() {
     // Center tick
     u8g2_.drawVLine(xc, yt - 2, 5);
 
-    // Map cant -45°..+45° to x0..x1
-    float c = cant_deg_;
-    if (c < -45.0f) c = -45.0f;
-    if (c >  45.0f) c =  45.0f;
-    int xp = xc + (int)(c * (float)(x1 - x0) / 90.0f);
+    // Map cant -15°..+15° to x0..x1 (apply calibration offset)
+    float c = cant_deg_ - cant_offset_;
+    if (c < -15.0f) c = -15.0f;
+    if (c >  15.0f) c =  15.0f;
+    int xp = xc + (int)(c * (float)(x1 - x0) / 30.0f);
     if (xp < x0) xp = x0;
     if (xp > x1) xp = x1;
 
