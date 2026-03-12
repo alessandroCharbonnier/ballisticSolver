@@ -37,7 +37,9 @@ public:
     void setCorrection(const ballistic::CorrectionResult& corr,
                        ballistic::CorrectionUnit unit);
     void setSensors(float temp_f, float press_inhg, float humidity_pct);
-    void setUnitSystem(uint8_t sys);
+    void setUnitDistance(uint8_t u);
+    void setUnitTemperature(uint8_t u);
+    void setUnitPressure(uint8_t u);
     void setWifiActive(bool active);
     void setLiveDigitCursor(uint8_t pos);   // 0=thousands, 1=hundreds, ...
 
@@ -70,7 +72,9 @@ private:
     float    temp_f_       = 59.0f;
     float    press_inhg_   = 29.92f;
     float    humidity_     = 0.0f;
-    uint8_t  unit_system_  = 0;
+    uint8_t  unit_distance_    = 0;
+    uint8_t  unit_temperature_ = 0;
+    uint8_t  unit_pressure_    = 0;
 
     void drawHeader();
     void drawDistance();

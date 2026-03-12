@@ -4,6 +4,7 @@
 #include "storage.h"
 
 #include <WiFi.h>
+#include <DNSServer.h>
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 
@@ -14,6 +15,7 @@ extern Storage      g_storage;
 extern volatile bool g_config_changed;
 
 static AsyncWebServer* s_server = nullptr;
+static DNSServer*      s_dns    = nullptr;
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  Request handlers
@@ -45,7 +47,13 @@ static void handleGetConfig(AsyncWebServerRequest* req) {
     cfg["click_size"] = g_rifle.click_size_moa;
     cfg["multi_bc"]   = g_rifle.multi_bc;
     cfg["use_ps"]     = g_rifle.use_powder_sens;
-    cfg["unit_system"] = g_rifle.unit_system;
+    JsonObject units = cfg["units"].to<JsonObject>();
+    units["distance"]    = g_rifle.unit_distance;
+    units["velocity"]    = g_rifle.unit_velocity;
+    units["weight"]      = g_rifle.unit_weight;
+    units["length"]      = g_rifle.unit_length;
+    units["temperature"] = g_rifle.unit_temperature;
+    units["pressure"]    = g_rifle.unit_pressure;
 
     if (g_rifle.multi_bc && g_rifle.num_bc_points > 0) {
         JsonArray bca = cfg["bc_points"].to<JsonArray>();
@@ -107,7 +115,15 @@ static void handleSave(AsyncWebServerRequest* req, uint8_t* data,
         g_rifle.click_size_moa = cfg["click_size"] | 0.25f;
         g_rifle.multi_bc       = cfg["multi_bc"]   | false;
         g_rifle.use_powder_sens= cfg["use_ps"]     | false;
-        g_rifle.unit_system    = cfg["unit_system"] | 0;
+        if (!cfg["units"].isNull()) {
+            JsonObject u = cfg["units"];
+            g_rifle.unit_distance    = u["distance"]    | 0;
+            g_rifle.unit_velocity    = u["velocity"]    | 0;
+            g_rifle.unit_weight      = u["weight"]      | 0;
+            g_rifle.unit_length      = u["length"]      | 0;
+            g_rifle.unit_temperature = u["temperature"] | 0;
+            g_rifle.unit_pressure    = u["pressure"]    | 0;
+        }
 
         // Multi-BC
         g_rifle.num_bc_points = 0;
@@ -177,6 +193,12 @@ void WebServer_::begin() {
     WiFi.mode(WIFI_AP);
     WiFi.softAP(cfg::WIFI_SSID, cfg::WIFI_PASS);
 
+    // Captive portal: redirect all DNS queries to the AP IP
+    if (!s_dns) {
+        s_dns = new DNSServer();
+    }
+    s_dns->start(53, "*", WiFi.softAPIP());
+
     if (!s_server) {
         s_server = new AsyncWebServer(cfg::WIFI_PORT);
 
@@ -193,6 +215,11 @@ void WebServer_::begin() {
             handleWifiOff(req);
         });
 
+        // Captive portal: redirect any unknown URL to root
+        s_server->onNotFound([](AsyncWebServerRequest* req) {
+            req->redirect("http://" + WiFi.softAPIP().toString() + "/");
+        });
+
         s_server->begin();
     }
 
@@ -201,9 +228,14 @@ void WebServer_::begin() {
 
 void WebServer_::stop() {
     if (!active_) return;
+    if (s_dns) s_dns->stop();
     WiFi.softAPdisconnect(true);
     WiFi.mode(WIFI_OFF);
     active_ = false;
+}
+
+void WebServer_::processDNS() {
+    if (active_ && s_dns) s_dns->processNextRequest();
 }
 
 void WebServer_::toggle() {

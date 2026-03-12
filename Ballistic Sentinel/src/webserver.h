@@ -1,14 +1,17 @@
 #pragma once
 /// @file webserver.h
-/// @brief AsyncWebServer for configuration UI + REST API.
+/// @brief AsyncWebServer for configuration UI + REST API + captive portal.
 
 class WebServer_ {
 public:
-    /// Start the WiFi AP and web server.
+    /// Start the WiFi AP, DNS captive portal, and web server.
     void begin();
 
-    /// Stop WiFi AP.
+    /// Stop WiFi AP and DNS server.
     void stop();
+
+    /// Process DNS requests.  Call from loop().
+    void processDNS();
 
     /// Whether the AP is currently active.
     bool isActive() const { return active_; }

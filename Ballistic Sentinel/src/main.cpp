@@ -55,7 +55,9 @@ static void applyConfig() {
 /// Push the latest mode state to the display.
 static void updateDisplay() {
     g_display.setAppState(static_cast<uint8_t>(g_modes.appState()));
-    g_display.setUnitSystem(g_modes.unitSystem());
+    g_display.setUnitDistance(g_modes.unitDistance());
+    g_display.setUnitTemperature(g_modes.unitTemperature());
+    g_display.setUnitPressure(g_modes.unitPressure());
 
     if (g_modes.appState() == AppState::MAIN_MENU) {
         g_display.setMenuCursor(g_modes.menuCursor());
@@ -171,6 +173,9 @@ void loop() {
 
     // ── Wind sensor polling ───────────────────────────────────────────────
     g_wind.poll();
+
+    // ── Captive portal DNS ────────────────────────────────────────────────
+    g_web.processDNS();
 
     // ── Sensor read (1 Hz) ────────────────────────────────────────────────
     if (now - s_last_sensor >= cfg::SENSOR_INTERVAL_MS) {

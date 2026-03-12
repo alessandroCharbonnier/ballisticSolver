@@ -49,6 +49,9 @@ td input{margin:0}
 .mv-table{margin-top:8px}
 .mv-table td{padding:2px 4px}
 .mv-table input{width:80px}
+.unit-row{display:flex;flex-wrap:wrap;gap:6px 12px;margin:6px 0 10px}
+.unit-row label{display:inline;margin:0;font-size:11px;color:#8b949e}
+.unit-row select{width:auto;min-width:70px;font-size:12px;padding:3px 6px}
 </style>
 </head>
 <body>
@@ -58,11 +61,15 @@ td input{margin:0}
 <h2 id="hdr-settings" class="open" onclick="toggle('settings')">SETTINGS</h2>
 <div id="settings" class="section show">
 
-<label>Unit System</label>
-<select id="unit_sys" onchange="switchUnits()">
-<option value="imp">Imperial (yd, fps, gr, in, °F)</option>
-<option value="met">Metric (m, m/s, g, mm, °C)</option>
-</select>
+<label>Display Units</label>
+<div class="unit-row">
+<div><label>Distance</label><select id="u_dist" onchange="unitChanged('distance')"><option value="0">yd</option><option value="1">m</option></select></div>
+<div><label>Velocity</label><select id="u_vel" onchange="unitChanged('velocity')"><option value="0">fps</option><option value="1">m/s</option></select></div>
+<div><label>Weight</label><select id="u_wt" onchange="unitChanged('weight')"><option value="0">gr</option><option value="1">g</option></select></div>
+<div><label>Length</label><select id="u_len" onchange="unitChanged('length')"><option value="0">in</option><option value="1">mm</option></select></div>
+<div><label>Temp</label><select id="u_temp" onchange="unitChanged('temperature')"><option value="0">&deg;F</option><option value="1">&deg;C</option></select></div>
+<div><label>Pressure</label><select id="u_press" onchange="unitChanged('pressure')"><option value="0">inHg</option><option value="1">hPa</option></select></div>
+</div>
 
 <div class="row">
 <div><label>BC</label><input id="bc" type="number" step="0.001" value="0.315"></div>
@@ -155,50 +162,78 @@ td input{margin:0}
 <div class="toast" id="toast"></div>
 
 <script>
-// Unit conversion helpers
+// ═══ Unit conversion helpers ═══
 const CV={
  gr_g:v=>+(v*0.06479891).toFixed(2),g_gr:v=>+(v/0.06479891).toFixed(1),
  in_mm:v=>+(v*25.4).toFixed(2),mm_in:v=>+(v/25.4).toFixed(3),
  fps_mps:v=>+(v*0.3048).toFixed(1),mps_fps:v=>Math.round(v/0.3048),
  yd_m:v=>+(v*0.9144).toFixed(1),m_yd:v=>Math.round(v/0.9144),
- f_c:v=>+((v-32)*5/9).toFixed(1),c_f:v=>+(v*9/5+32).toFixed(1)
+ f_c:v=>+((v-32)*5/9).toFixed(1),c_f:v=>+(v*9/5+32).toFixed(1),
+ inhg_hpa:v=>+(v*33.8639).toFixed(1),hpa_inhg:v=>+(v/33.8639).toFixed(2)
 };
-const UF=[
- ['weight','lbl_weight','Bullet Weight (gr)','Bullet Weight (g)','gr_g','g_gr'],
- ['caliber','lbl_caliber','Caliber (in)','Caliber (mm)','in_mm','mm_in'],
- ['length','lbl_length','Bullet Length (in)','Bullet Length (mm)','in_mm','mm_in'],
- ['mv','lbl_mv','Muzzle Vel (fps)','Muzzle Vel (m/s)','fps_mps','mps_fps'],
- ['sh','lbl_sh','Sight Height (in)','Sight Height (mm)','in_mm','mm_in'],
- ['twist','lbl_twist','Twist (in, +RH)','Twist (mm, +RH)','in_mm','mm_in'],
- ['zero','lbl_zero','Zero Range (yd)','Zero Range (m)','yd_m','m_yd']
-];
-let isMet=false;
+// Unit state: tracks current displayed unit per type
+// 0=imperial shown, 1=metric shown
+let U={distance:0,velocity:0,weight:0,length:0,temperature:0,pressure:0};
+// Map unit types to affected fields: [inputId, to_metric_fn, to_imperial_fn, imp_label, met_label]
+const UM={
+ distance:[
+  {id:'zero',lbl:'lbl_zero',il:'Zero Range (yd)',ml:'Zero Range (m)'},
+ ],
+ velocity:[
+  {id:'mv',lbl:'lbl_mv',il:'Muzzle Vel (fps)',ml:'Muzzle Vel (m/s)'},
+  {id:'mbv1'},{id:'mbv2'},{id:'mbv3'},
+  {id:'ps_v1',lbl:'lbl_ps_v1',il:'Vel 1 (fps)',ml:'Vel 1 (m/s)'},
+  {id:'ps_v2',lbl:'lbl_ps_v2',il:'Vel 2 (fps)',ml:'Vel 2 (m/s)'},
+ ],
+ weight:[
+  {id:'weight',lbl:'lbl_weight',il:'Bullet Weight (gr)',ml:'Bullet Weight (g)'},
+ ],
+ length:[
+  {id:'caliber',lbl:'lbl_caliber',il:'Caliber (in)',ml:'Caliber (mm)'},
+  {id:'length',lbl:'lbl_length',il:'Bullet Length (in)',ml:'Bullet Length (mm)'},
+  {id:'sh',lbl:'lbl_sh',il:'Sight Height (in)',ml:'Sight Height (mm)'},
+  {id:'twist',lbl:'lbl_twist',il:'Twist (in, +RH)',ml:'Twist (mm, +RH)'},
+ ],
+ temperature:[
+  {id:'ps_t1',lbl:'lbl_ps_t1',il:'Temp 1 (\u00b0F)',ml:'Temp 1 (\u00b0C)'},
+  {id:'ps_t2',lbl:'lbl_ps_t2',il:'Temp 2 (\u00b0F)',ml:'Temp 2 (\u00b0C)'},
+ ],
+ pressure:[]
+};
+const CF={
+ distance:['yd_m','m_yd'],velocity:['fps_mps','mps_fps'],
+ weight:['gr_g','g_gr'],length:['in_mm','mm_in'],
+ temperature:['f_c','c_f'],pressure:['inhg_hpa','hpa_inhg']
+};
 
 function $(id){return document.getElementById(id)}
 function toggle(id){
  let s=$('hdr-'+id),d=$(id);
  s.classList.toggle('open');d.classList.toggle('show');
 }
-function switchUnits(){
- let m=$('unit_sys').value==='met';
- if(m===isMet)return;
- UF.forEach(f=>{
-  let el=$(f[0]),v=+el.value;
-  if(!isNaN(v)&&v!==0)el.value=m?CV[f[4]](v):CV[f[5]](v);
-  $(f[1]).textContent=m?f[3]:f[2];
+
+function unitChanged(type){
+ let selMap={distance:'u_dist',velocity:'u_vel',weight:'u_wt',length:'u_len',temperature:'u_temp',pressure:'u_press'};
+ let nv=+$(selMap[type]).value;
+ let ov=U[type];
+ if(nv===ov)return;
+ let fns=CF[type];
+ let toM=CV[fns[0]],toI=CV[fns[1]];
+ let cvt=nv===1?toM:toI;
+ (UM[type]||[]).forEach(f=>{
+  let el=$(f.id);if(!el)return;
+  let v=+el.value;
+  if(!isNaN(v)&&v!==0)el.value=cvt(v);
+  if(f.lbl)$(f.lbl).textContent=nv===1?f.ml:f.il;
  });
- for(let i=1;i<=3;i++){let e=$('mbv'+i);if(e.value)e.value=m?CV.fps_mps(+e.value):CV.mps_fps(+e.value)}
- $('th_mbv').textContent=m?'Velocity (m/s)':'Velocity (fps)';
- ['ps_v1','ps_v2'].forEach(id=>{let e=$(id);if(e.value)e.value=m?CV.fps_mps(+e.value):CV.mps_fps(+e.value)});
- ['ps_t1','ps_t2'].forEach(id=>{let e=$(id);if(e.value)e.value=m?CV.f_c(+e.value):CV.c_f(+e.value)});
- $('lbl_ps_v1').textContent=m?'Vel 1 (m/s)':'Vel 1 (fps)';
- $('lbl_ps_v2').textContent=m?'Vel 2 (m/s)':'Vel 2 (fps)';
- $('lbl_ps_t1').textContent=m?'Temp 1 (°C)':'Temp 1 (°F)';
- $('lbl_ps_t2').textContent=m?'Temp 2 (°C)':'Temp 2 (°F)';
- stages.forEach(s=>{s.distance=m?+CV.yd_m(s.distance):CV.m_yd(s.distance)});
- $('th_stg_dist').textContent=m?'Distance (m)':'Distance (yd)';
- renderStages();
- isMet=m;
+ // Special header labels
+ if(type==='velocity')$('th_mbv').textContent=nv===1?'Velocity (m/s)':'Velocity (fps)';
+ if(type==='distance'){
+  $('th_stg_dist').textContent=nv===1?'Distance (m)':'Distance (yd)';
+  stages.forEach(s=>{s.distance=nv===1?+CV.yd_m(s.distance):CV.m_yd(s.distance)});
+  renderStages();
+ }
+ U[type]=nv;
 }
 function toggleMultiBC(){$('multi_bc_section').style.display=$('multi_bc').checked?'block':'none'}
 function togglePS(){$('ps_section').style.display=$('use_ps').checked?'block':'none'}
@@ -238,36 +273,41 @@ function checkNewRow(){}
 // ═══ API ═══
 function toast(msg,ms){let t=$('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',ms||2000)}
 
-function imp(k,v){return isMet?CV[k](v):v}
+// Convert displayed value back to imperial for a given unit type
+function toImp(type,v){
+ if(U[type]===0)return v;
+ return CV[CF[type][1]](v);
+}
 function gatherConfig(){
  let c={
   bc:+$('bc').value, drag_table:$('drag_table').value,
-  weight:imp('g_gr',+$('weight').value), caliber:imp('mm_in',+$('caliber').value),
-  length:imp('mm_in',+$('length').value), mv:imp('mps_fps',+$('mv').value),
-  sh:imp('mm_in',+$('sh').value), twist:imp('mm_in',+$('twist').value),
-  zero:imp('m_yd',+$('zero').value), lat:+$('lat').value,
+  weight:toImp('weight',+$('weight').value), caliber:toImp('length',+$('caliber').value),
+  length:toImp('length',+$('length').value), mv:toImp('velocity',+$('mv').value),
+  sh:toImp('length',+$('sh').value), twist:toImp('length',+$('twist').value),
+  zero:toImp('distance',+$('zero').value), lat:+$('lat').value,
   corr_unit:$('corr_unit').value, click_size:+$('click_size').value,
   multi_bc:$('multi_bc').checked,
   use_ps:$('use_ps').checked,
-  unit_system:isMet?1:0
+  units:{distance:U.distance,velocity:U.velocity,weight:U.weight,
+         length:U.length,temperature:U.temperature,pressure:U.pressure}
  };
  if(c.multi_bc){
   c.bc_points=[];
   for(let i=1;i<=3;i++){
-   let b=+$('mbc'+i).value,v=imp('mps_fps',+$('mbv'+i).value);
+   let b=+$('mbc'+i).value,v=toImp('velocity',+$('mbv'+i).value);
    if(b>0&&v>0)c.bc_points.push({bc:b,vel:v});
   }
  }
  if(c.use_ps){
-  c.ps={v1:imp('mps_fps',+$('ps_v1').value),t1:imp('c_f',+$('ps_t1').value),
-        v2:imp('mps_fps',+$('ps_v2').value),t2:imp('c_f',+$('ps_t2').value)};
+  c.ps={v1:toImp('velocity',+$('ps_v1').value),t1:toImp('temperature',+$('ps_t1').value),
+        v2:toImp('velocity',+$('ps_v2').value),t2:toImp('temperature',+$('ps_t2').value)};
  }
  return c;
 }
 
 async function saveAll(){
  try{
-  let stg=stages.map(s=>({name:s.name,distance:isMet?CV.m_yd(s.distance):s.distance}));
+  let stg=stages.map(s=>({name:s.name,distance:U.distance?CV.m_yd(s.distance):s.distance}));
   let body=JSON.stringify({config:gatherConfig(),stages:stg});
   let r=await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body});
   if(r.ok)toast('Saved!');else toast('Save failed: '+r.status,3000);
@@ -286,36 +326,42 @@ async function loadConfig(){
   let d=await r.json();
   if(d.config){
    let c=d.config;
-   let m=!!(c.unit_system);
-   $('unit_sys').value=m?'met':'imp';isMet=m;
-   let dsp=(k,v)=>m?CV[k](v):v;
+   // Load per-unit prefs
+   let uu=c.units||{};
+   let selMap={distance:'u_dist',velocity:'u_vel',weight:'u_wt',length:'u_len',temperature:'u_temp',pressure:'u_press'};
+   for(let t in selMap){
+    let v=uu[t]||0;
+    $(selMap[t]).value=v;
+    U[t]=v;
+   }
+   // Convert from imperial (server values) to displayed unit
+   let dsp=(type,v)=>U[type]?CV[CF[type][0]](v):v;
    $('bc').value=c.bc||.315;$('drag_table').value=c.drag_table||'G7';
-   $('weight').value=dsp('gr_g',c.weight||140);$('caliber').value=dsp('in_mm',c.caliber||.264);
-   $('length').value=dsp('in_mm',c.length||1.35);$('mv').value=dsp('fps_mps',c.mv||2710);
-   $('sh').value=dsp('in_mm',c.sh||1.5);$('twist').value=dsp('in_mm',c.twist||8);
-   $('zero').value=dsp('yd_m',c.zero||100);$('lat').value=c.lat||0;
+   $('weight').value=dsp('weight',c.weight||140);$('caliber').value=dsp('length',c.caliber||.264);
+   $('length').value=dsp('length',c.length||1.35);$('mv').value=dsp('velocity',c.mv||2710);
+   $('sh').value=dsp('length',c.sh||1.5);$('twist').value=dsp('length',c.twist||8);
+   $('zero').value=dsp('distance',c.zero||100);$('lat').value=c.lat||0;
    $('corr_unit').value=c.corr_unit||'MOA';$('click_size').value=c.click_size||.25;
    $('multi_bc').checked=!!c.multi_bc;toggleMultiBC();
    if(c.bc_points){
     c.bc_points.forEach((p,i)=>{
-     if(i<3){$('mbc'+(i+1)).value=p.bc;$('mbv'+(i+1)).value=dsp('fps_mps',p.vel)}
+     if(i<3){$('mbc'+(i+1)).value=p.bc;$('mbv'+(i+1)).value=dsp('velocity',p.vel)}
     });
    }
    $('use_ps').checked=!!c.use_ps;togglePS();
    if(c.ps){
-    $('ps_v1').value=dsp('fps_mps',c.ps.v1);$('ps_t1').value=dsp('f_c',c.ps.t1);
-    $('ps_v2').value=dsp('fps_mps',c.ps.v2);$('ps_t2').value=dsp('f_c',c.ps.t2);
+    $('ps_v1').value=dsp('velocity',c.ps.v1);$('ps_t1').value=dsp('temperature',c.ps.t1);
+    $('ps_v2').value=dsp('velocity',c.ps.v2);$('ps_t2').value=dsp('temperature',c.ps.t2);
    }
-   if(m){
-    UF.forEach(f=>$(f[1]).textContent=f[3]);
-    $('th_mbv').textContent='Velocity (m/s)';
-    $('lbl_ps_v1').textContent='Vel 1 (m/s)';$('lbl_ps_v2').textContent='Vel 2 (m/s)';
-    $('lbl_ps_t1').textContent='Temp 1 (°C)';$('lbl_ps_t2').textContent='Temp 2 (°C)';
-    $('th_stg_dist').textContent='Distance (m)';
+   // Apply metric labels where needed
+   for(let t in UM){
+    if(U[t])(UM[t]||[]).forEach(f=>{if(f.lbl)$(f.lbl).textContent=f.ml});
    }
+   if(U.velocity)$('th_mbv').textContent='Velocity (m/s)';
+   if(U.distance)$('th_stg_dist').textContent='Distance (m)';
   }
   if(d.stages){
-   stages=d.stages.map(s=>({name:s.name,distance:isMet?+CV.yd_m(s.distance):s.distance}));
+   stages=d.stages.map(s=>({name:s.name,distance:U.distance?+CV.yd_m(s.distance):s.distance}));
    renderStages();
   }
  }catch(e){console.error(e)}

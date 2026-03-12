@@ -20,7 +20,9 @@ void ModeManager::reconfigure(const RifleConfig& rifle, const StageConfig& stage
 
     corr_unit_ = static_cast<ballistic::CorrectionUnit>(rifle.correction_unit);
     latitude_deg_ = rifle.latitude_deg;
-    unit_system_ = rifle.unit_system;
+    unit_distance_    = rifle.unit_distance;
+    unit_temperature_ = rifle.unit_temperature;
+    unit_pressure_    = rifle.unit_pressure;
 
     // Click size: convert MOA to radians
     click_size_rad_ = rifle.click_size_moa * ballistic::kMoaToRad;
@@ -217,7 +219,7 @@ void ModeManager::compute(const SensorData& sensors, const WindData& wind) {
 
 uint16_t ModeManager::distance() const {
     if (app_state_ == AppState::LIVE_SHOOTING) {
-        if (unit_system_ == 1) {
+        if (unit_distance_ == 1) {
             return static_cast<uint16_t>(live_distance_ / 0.9144 + 0.5);
         }
         return live_distance_;
@@ -237,7 +239,7 @@ uint16_t ModeManager::displayDistance() const {
     if (app_state_ == AppState::STAGE_SHOOTING
         && stage_count_ > 0 && stage_idx_ < stage_count_)
     {
-        if (unit_system_ == 1) {
+        if (unit_distance_ == 1) {
             return static_cast<uint16_t>(stages_[stage_idx_].distance_yd * 0.9144 + 0.5);
         }
         return stages_[stage_idx_].distance_yd;

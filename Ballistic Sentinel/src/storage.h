@@ -41,8 +41,13 @@ struct RifleConfig {
     // Coriolis
     float    latitude_deg      = 0.0f;
 
-    // Display units (0 = Imperial, 1 = Metric)
-    uint8_t  unit_system       = 0;
+    // Per-unit display preferences (0 = imperial, 1 = metric)
+    uint8_t  unit_distance     = 0;   // 0=yd, 1=m
+    uint8_t  unit_velocity     = 0;   // 0=fps, 1=m/s
+    uint8_t  unit_weight       = 0;   // 0=gr, 1=g
+    uint8_t  unit_length       = 0;   // 0=in, 1=mm
+    uint8_t  unit_temperature  = 0;   // 0=°F, 1=°C
+    uint8_t  unit_pressure     = 0;   // 0=inHg, 1=hPa
 };
 
 /// A single staged target.
