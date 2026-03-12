@@ -6,6 +6,11 @@
 #include <ballistic.h>
 #include "config.h"
 
+// AppState values (avoid circular include with modes.h)
+constexpr uint8_t APP_STATE_MENU  = 0;
+constexpr uint8_t APP_STATE_LIVE  = 1;
+constexpr uint8_t APP_STATE_STAGE = 2;
+
 /// Display layout (128×64 monochrome, monospace fonts):
 ///   Y  0–9   : mode header + WiFi icon          (5×8 font)
 ///   Y 12–23  : distance / target info            (6×12 font)
@@ -17,6 +22,13 @@ class Display {
 public:
     void begin();
     void update();
+
+    // --- State setters ---
+    void setAppState(uint8_t state);
+    void setMenuCursor(uint8_t cursor);
+    void setWifiOn(bool on);
+    void setCant(float cant_deg);
+    void showSleep();
 
     // --- Data setters (called from main loop) ---
     void setMode(bool staged, uint8_t stage_idx = 0, uint8_t stage_total = 0);
@@ -40,6 +52,12 @@ private:
     bool     wifi_active_  = false;
     uint8_t  digit_cursor_ = 1;   // live mode cursor position (0-3)
 
+    // Menu & cant state
+    uint8_t  app_state_    = APP_STATE_MENU;
+    uint8_t  menu_cursor_  = 0;
+    bool     wifi_menu_on_ = false;
+    float    cant_deg_     = 0.0f;
+
     // Correction display
     float    v_corr_       = 0.0f;
     bool     v_up_         = true;
@@ -56,6 +74,8 @@ private:
     void drawDistance();
     void drawCorrections();
     void drawSensorBar();
+    void drawMenu();
+    void drawCantSlider();
     void drawArrowUp(int x, int y);
     void drawArrowDown(int x, int y);
     void drawArrowRight(int x, int y);

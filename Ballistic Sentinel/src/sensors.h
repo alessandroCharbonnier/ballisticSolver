@@ -9,8 +9,10 @@ struct SensorData {
     float pressure_inhg  = 29.92f;   // inHg
     float humidity_pct   = 0.0f;     // %
     float heading_deg    = 0.0f;     // compass heading 0–360
+    float cant_deg       = 0.0f;     // rifle cant (roll from MPU6050)
     bool  bme_ok         = false;
     bool  compass_ok     = false;
+    bool  mpu_ok         = false;
 };
 
 class Sensors {

@@ -6,6 +6,7 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <esp_sleep.h>
 
 #include "config.h"
 #include "display.h"
@@ -53,21 +54,29 @@ static void applyConfig() {
 
 /// Push the latest mode state to the display.
 static void updateDisplay() {
-    bool staged = (g_modes.mode() == ShootingMode::STAGED);
-    g_display.setMode(staged, g_modes.stageIndex(), g_modes.stageCount());
+    g_display.setAppState(static_cast<uint8_t>(g_modes.appState()));
 
-    if (staged) {
-        g_display.setStageName(g_modes.stageName());
+    if (g_modes.appState() == AppState::MAIN_MENU) {
+        g_display.setMenuCursor(g_modes.menuCursor());
+        g_display.setWifiOn(g_modes.wifiOn());
+    } else {
+        bool staged = (g_modes.appState() == AppState::STAGE_SHOOTING);
+        g_display.setMode(staged, g_modes.stageIndex(), g_modes.stageCount());
+
+        if (staged) {
+            g_display.setStageName(g_modes.stageName());
+        }
+
+        g_display.setDistance(g_modes.distance());
+        g_display.setCorrection(g_modes.result(), g_modes.corrUnit());
+        g_display.setLiveDigitCursor(g_modes.digitCursor());
+
+        const auto& sd = g_sensors.data();
+        g_display.setSensors(sd.temperature_f, sd.pressure_inhg, sd.humidity_pct);
+        g_display.setCant(sd.cant_deg);
     }
 
-    g_display.setDistance(g_modes.distance());
-    g_display.setCorrection(g_modes.result(), g_modes.corrUnit());
-    g_display.setLiveDigitCursor(g_modes.digitCursor());
-
-    const auto& sd = g_sensors.data();
-    g_display.setSensors(sd.temperature_f, sd.pressure_inhg, sd.humidity_pct);
     g_display.setWifiActive(g_web.isActive());
-
     g_display.update();
 }
 
@@ -121,12 +130,34 @@ void loop() {
     ButtonState btn = g_input.poll();
 
     if (btn.event != ButtonEvent::NONE) {
-        // Long-press CENTER → toggle WiFi AP
+        static const char* const btn_names[] = {
+            "NONE", "UP", "DOWN", "LEFT", "RIGHT", "CENTER"
+        };
+        static const char* const evt_names[] = {
+            "NONE", "PRESS", "DOUBLE", "LONG", "REPEAT"
+        };
+        Serial.printf("[input] %s %s\n",
+            btn_names[static_cast<uint8_t>(btn.id)],
+            evt_names[static_cast<uint8_t>(btn.event)]);
+
+        // 5s hold CENTER → deep sleep
         if (btn.id == ButtonId::CENTER && btn.event == ButtonEvent::LONG_PRESS) {
-            g_web.toggle();
-            digitalWrite(cfg::PIN_LED, g_web.isActive() ? HIGH : LOW);
-        } else {
-            g_modes.handleButton(btn);
+            g_display.showSleep();
+            delay(500);
+            g_input.configureWakeup();
+            esp_deep_sleep_start();
+        }
+
+        g_modes.handleButton(btn);
+
+        // WiFi toggled from menu
+        if (g_modes.wifiToggled()) {
+            if (g_modes.wifiOn()) {
+                g_web.begin();
+            } else {
+                g_web.stop();
+            }
+            digitalWrite(cfg::PIN_LED, g_modes.wifiOn() ? HIGH : LOW);
         }
     }
 

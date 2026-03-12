@@ -64,48 +64,83 @@ void ModeManager::configureCaclulator(const RifleConfig& rifle) {
 void ModeManager::handleButton(ButtonState btn) {
     if (btn.event == ButtonEvent::NONE) return;
 
-    // CENTER short → toggle mode
-    if (btn.id == ButtonId::CENTER && btn.event == ButtonEvent::PRESS) {
-        mode_ = (mode_ == ShootingMode::LIVE) ? ShootingMode::STAGED
-                                               : ShootingMode::LIVE;
+    // LONG_PRESS CENTER → deep sleep (handled by main.cpp before this)
+    if (btn.id == ButtonId::CENTER && btn.event == ButtonEvent::LONG_PRESS)
+        return;
+
+    switch (app_state_) {
+        case AppState::MAIN_MENU:      handleMenuButton(btn);  break;
+        case AppState::LIVE_SHOOTING:  handleLiveButton(btn);  break;
+        case AppState::STAGE_SHOOTING: handleStageButton(btn); break;
+    }
+}
+
+void ModeManager::handleMenuButton(ButtonState btn) {
+    if (btn.id == ButtonId::UP
+        && (btn.event == ButtonEvent::PRESS || btn.event == ButtonEvent::REPEAT))
+    {
+        if (menu_cursor_ > 0) menu_cursor_--;
+    }
+    else if (btn.id == ButtonId::DOWN
+             && (btn.event == ButtonEvent::PRESS || btn.event == ButtonEvent::REPEAT))
+    {
+        if (menu_cursor_ < MENU_ITEM_COUNT - 1) menu_cursor_++;
+    }
+    else if (btn.id == ButtonId::CENTER && btn.event == ButtonEvent::PRESS) {
+        switch (menu_cursor_) {
+            case 0: app_state_ = AppState::LIVE_SHOOTING;  break;
+            case 1: app_state_ = AppState::STAGE_SHOOTING; break;
+            case 2:
+                wifi_on_ = !wifi_on_;
+                wifi_toggled_ = true;
+                break;
+        }
+    }
+}
+
+void ModeManager::handleLiveButton(ButtonState btn) {
+    // Double-press CENTER → back to menu
+    if (btn.id == ButtonId::CENTER && btn.event == ButtonEvent::DOUBLE_PRESS) {
+        app_state_ = AppState::MAIN_MENU;
         return;
     }
 
-    // CENTER long → handled by main (WiFi toggle)
-    if (btn.id == ButtonId::CENTER) return;
-
-    // Only PRESS and REPEAT for directional buttons
     if (btn.event != ButtonEvent::PRESS && btn.event != ButtonEvent::REPEAT)
         return;
 
-    if (mode_ == ShootingMode::LIVE) {
-        switch (btn.id) {
-            case ButtonId::UP:    adjustDigit(+1); break;
-            case ButtonId::DOWN:  adjustDigit(-1); break;
-            case ButtonId::LEFT:
-                if (digit_cursor_ > 0) digit_cursor_--;
-                break;
-            case ButtonId::RIGHT:
-                if (digit_cursor_ < 3) digit_cursor_++;
-                break;
-            default: break;
-        }
-    } else {
-        // Staged mode: left/right cycle targets
-        switch (btn.id) {
-            case ButtonId::RIGHT:
-                if (stage_count_ > 0) {
-                    stage_idx_ = (stage_idx_ + 1) % stage_count_;
-                }
-                break;
-            case ButtonId::LEFT:
-                if (stage_count_ > 0) {
-                    stage_idx_ = (stage_idx_ == 0)
-                        ? stage_count_ - 1 : stage_idx_ - 1;
-                }
-                break;
-            default: break;  // UP/DOWN do nothing in staged mode
-        }
+    switch (btn.id) {
+        case ButtonId::UP:    adjustDigit(+1); break;
+        case ButtonId::DOWN:  adjustDigit(-1); break;
+        case ButtonId::LEFT:
+            if (digit_cursor_ > 0) digit_cursor_--;
+            break;
+        case ButtonId::RIGHT:
+            if (digit_cursor_ < 3) digit_cursor_++;
+            break;
+        default: break;
+    }
+}
+
+void ModeManager::handleStageButton(ButtonState btn) {
+    // Double-press CENTER → back to menu
+    if (btn.id == ButtonId::CENTER && btn.event == ButtonEvent::DOUBLE_PRESS) {
+        app_state_ = AppState::MAIN_MENU;
+        return;
+    }
+
+    if (btn.event != ButtonEvent::PRESS && btn.event != ButtonEvent::REPEAT)
+        return;
+
+    switch (btn.id) {
+        case ButtonId::RIGHT:
+            if (stage_count_ > 0)
+                stage_idx_ = (stage_idx_ + 1) % stage_count_;
+            break;
+        case ButtonId::LEFT:
+            if (stage_count_ > 0)
+                stage_idx_ = (stage_idx_ == 0) ? stage_count_ - 1 : stage_idx_ - 1;
+            break;
+        default: break;
     }
 }
 
@@ -180,10 +215,12 @@ void ModeManager::compute(const SensorData& sensors, const WindData& wind) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 uint16_t ModeManager::distance() const {
-    if (mode_ == ShootingMode::LIVE) {
+    if (app_state_ == AppState::LIVE_SHOOTING) {
         return live_distance_;
     }
-    if (stage_count_ > 0 && stage_idx_ < stage_count_) {
+    if (app_state_ == AppState::STAGE_SHOOTING
+        && stage_count_ > 0 && stage_idx_ < stage_count_)
+    {
         return stages_[stage_idx_].distance_yd;
     }
     return 0;

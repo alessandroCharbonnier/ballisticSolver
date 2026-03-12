@@ -17,10 +17,15 @@ void Display::begin() {
 
 void Display::update() {
     u8g2_.clearBuffer();
-    drawHeader();
-    drawDistance();
-    drawCorrections();
-    drawSensorBar();
+    if (app_state_ == APP_STATE_MENU) {
+        drawMenu();
+    } else {
+        drawCantSlider();
+        drawHeader();
+        drawDistance();
+        drawCorrections();
+        drawSensorBar();
+    }
     u8g2_.sendBuffer();
 }
 
@@ -58,7 +63,62 @@ void Display::setSensors(float t, float p, float h) {
 void Display::setWifiActive(bool a) { wifi_active_ = a; }
 void Display::setLiveDigitCursor(uint8_t pos) { digit_cursor_ = pos; }
 
-// ── Drawing helpers ────────────────────────────────────────────────────────
+void Display::setAppState(uint8_t state) { app_state_ = state; }
+void Display::setMenuCursor(uint8_t cursor) { menu_cursor_ = cursor; }
+void Display::setWifiOn(bool on) { wifi_menu_on_ = on; }
+void Display::setCant(float cant_deg) { cant_deg_ = cant_deg; }
+
+void Display::showSleep() {
+    u8g2_.clearBuffer();
+    u8g2_.setFont(u8g2_font_6x12_mf);
+    u8g2_.drawStr(22, 36, "Deep Sleep...");
+    u8g2_.sendBuffer();
+}
+
+// ── Drawing helpers ──────────────────────────────────────────────────────────
+
+void Display::drawMenu() {
+    u8g2_.setFont(u8g2_font_6x12_mf);
+    u8g2_.drawStr(34, 12, "MAIN MENU");
+    u8g2_.drawHLine(0, 15, 128);
+
+    int y = 30;
+    for (uint8_t i = 0; i < 3; ++i) {
+        if (i == menu_cursor_) {
+            u8g2_.drawStr(2, y, ">");
+        }
+        switch (i) {
+            case 0: u8g2_.drawStr(14, y, "Live Shooting");  break;
+            case 1: u8g2_.drawStr(14, y, "Stage Shooting"); break;
+            case 2:
+                u8g2_.drawStr(14, y,
+                    wifi_menu_on_ ? "WiFi [ON]" : "WiFi [OFF]");
+                break;
+        }
+        y += 14;
+    }
+}
+
+void Display::drawCantSlider() {
+    const int x0 = 56, x1 = 100, yt = 4;
+    const int xc = (x0 + x1) / 2;   // 78
+
+    // Track line
+    u8g2_.drawHLine(x0, yt, x1 - x0);
+    // Center tick
+    u8g2_.drawVLine(xc, yt - 2, 5);
+
+    // Map cant -45°..+45° to x0..x1
+    float c = cant_deg_;
+    if (c < -45.0f) c = -45.0f;
+    if (c >  45.0f) c =  45.0f;
+    int xp = xc + (int)(c * (float)(x1 - x0) / 90.0f);
+    if (xp < x0) xp = x0;
+    if (xp > x1) xp = x1;
+
+    // Indicator (small filled rect)
+    u8g2_.drawBox(xp - 1, yt - 2, 3, 5);
+}
 
 void Display::drawHeader() {
     u8g2_.setFont(u8g2_font_5x8_mf);

@@ -11,9 +11,10 @@ enum class ButtonId : uint8_t {
 
 enum class ButtonEvent : uint8_t {
     NONE,
-    PRESS,        // normal short press
-    LONG_PRESS,   // held for BTN_LONG_PRESS_MS
-    REPEAT        // auto-repeat while held
+    PRESS,        // single short press (CENTER: delayed by double-press window)
+    DOUBLE_PRESS, // two short presses within BTN_DOUBLE_PRESS_MS (CENTER only)
+    LONG_PRESS,   // held for BTN_LONG_PRESS_MS (CENTER → deep sleep)
+    REPEAT        // auto-repeat while held (directional only)
 };
 
 struct ButtonState {
@@ -30,17 +31,21 @@ public:
     /// Call every loop iteration.  Returns the most recent event (if any).
     ButtonState poll();
 
+    /// Configure CENTER button as ext0 wakeup source before deep sleep.
+    void configureWakeup();
+
 private:
     struct BtnInfo {
         uint8_t      pin;
         ButtonId     id;
         bool         pressed;
         uint32_t     pressed_at;
+        uint32_t     released_at;
         uint32_t     last_repeat;
         bool         long_fired;
         BtnInfo(uint8_t p, ButtonId i)
             : pin(p), id(i), pressed(false), pressed_at(0),
-              last_repeat(0), long_fired(false) {}
+              released_at(0), last_repeat(0), long_fired(false) {}
     };
 
     BtnInfo btns_[5] = {
@@ -52,4 +57,9 @@ private:
     };
 
     uint32_t last_debounce_ = 0;
+
+    // CENTER double-press state
+    uint8_t  center_press_count_   = 0;
+    uint32_t center_first_release_ = 0;
+    bool     center_waiting_       = false;
 };

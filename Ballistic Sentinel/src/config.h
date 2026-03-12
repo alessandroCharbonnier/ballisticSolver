@@ -37,6 +37,7 @@ constexpr uint32_t I2C_FREQ_HZ     = 400000;  // 400 kHz Fast-mode
 constexpr uint8_t I2C_ADDR_OLED    = 0x3C;    // SH1106 default
 constexpr uint8_t I2C_ADDR_BME280  = 0x76;    // SDO → GND
 constexpr uint8_t I2C_ADDR_QMC5883 = 0x0D;    // fixed by chip
+constexpr uint8_t I2C_ADDR_MPU6050 = 0x68;    // AD0 → GND
 
 // ---------------------------------------------------------------------------
 //  5-Way Navigation Button (active-low, use INPUT_PULLUP)
@@ -49,7 +50,8 @@ constexpr uint8_t PIN_BTN_CENTER   = 27;
 
 // Debounce & long-press timing (ms)
 constexpr uint16_t BTN_DEBOUNCE_MS      = 50;
-constexpr uint16_t BTN_LONG_PRESS_MS    = 3000;  // toggle WiFi
+constexpr uint16_t BTN_LONG_PRESS_MS    = 5000;  // deep sleep
+constexpr uint16_t BTN_DOUBLE_PRESS_MS  = 300;   // double-press window
 constexpr uint16_t BTN_REPEAT_DELAY_MS  = 400;   // auto-repeat start
 constexpr uint16_t BTN_REPEAT_RATE_MS   = 150;   // auto-repeat interval
 
