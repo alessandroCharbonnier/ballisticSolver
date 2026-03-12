@@ -40,6 +40,9 @@ struct RifleConfig {
 
     // Coriolis
     float    latitude_deg      = 0.0f;
+
+    // Display units (0 = Imperial, 1 = Metric)
+    uint8_t  unit_system       = 0;
 };
 
 /// A single staged target.

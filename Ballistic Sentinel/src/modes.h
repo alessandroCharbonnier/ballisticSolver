@@ -41,6 +41,8 @@ public:
     uint8_t      digitCursor() const { return digit_cursor_; }
     const ballistic::CorrectionResult& result() const { return result_; }
     ballistic::CorrectionUnit corrUnit() const { return corr_unit_; }
+    uint16_t     displayDistance() const;
+    uint8_t      unitSystem() const { return unit_system_; }
 
 private:
     AppState app_state_   = AppState::MAIN_MENU;
@@ -64,6 +66,7 @@ private:
     double click_size_rad_ = 0.0;
     float  latitude_deg_   = 0.0f;
     bool   solved_ = false;
+    uint8_t unit_system_ = 0;
 
     void configureCaclulator(const RifleConfig& rifle);
     void adjustDigit(int delta);

@@ -45,6 +45,7 @@ static void handleGetConfig(AsyncWebServerRequest* req) {
     cfg["click_size"] = g_rifle.click_size_moa;
     cfg["multi_bc"]   = g_rifle.multi_bc;
     cfg["use_ps"]     = g_rifle.use_powder_sens;
+    cfg["unit_system"] = g_rifle.unit_system;
 
     if (g_rifle.multi_bc && g_rifle.num_bc_points > 0) {
         JsonArray bca = cfg["bc_points"].to<JsonArray>();
@@ -106,6 +107,7 @@ static void handleSave(AsyncWebServerRequest* req, uint8_t* data,
         g_rifle.click_size_moa = cfg["click_size"] | 0.25f;
         g_rifle.multi_bc       = cfg["multi_bc"]   | false;
         g_rifle.use_powder_sens= cfg["use_ps"]     | false;
+        g_rifle.unit_system    = cfg["unit_system"] | 0;
 
         // Multi-BC
         g_rifle.num_bc_points = 0;

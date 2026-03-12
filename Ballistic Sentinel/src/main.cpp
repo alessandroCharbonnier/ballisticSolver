@@ -55,6 +55,7 @@ static void applyConfig() {
 /// Push the latest mode state to the display.
 static void updateDisplay() {
     g_display.setAppState(static_cast<uint8_t>(g_modes.appState()));
+    g_display.setUnitSystem(g_modes.unitSystem());
 
     if (g_modes.appState() == AppState::MAIN_MENU) {
         g_display.setMenuCursor(g_modes.menuCursor());
@@ -67,7 +68,7 @@ static void updateDisplay() {
             g_display.setStageName(g_modes.stageName());
         }
 
-        g_display.setDistance(g_modes.distance());
+        g_display.setDistance(g_modes.displayDistance());
         g_display.setCorrection(g_modes.result(), g_modes.corrUnit());
         g_display.setLiveDigitCursor(g_modes.digitCursor());
 

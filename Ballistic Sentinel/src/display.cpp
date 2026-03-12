@@ -60,6 +60,7 @@ void Display::setSensors(float t, float p, float h) {
     humidity_  = h;
 }
 
+void Display::setUnitSystem(uint8_t sys) { unit_system_ = sys; }
 void Display::setWifiActive(bool a) { wifi_active_ = a; }
 void Display::setLiveDigitCursor(uint8_t pos) { digit_cursor_ = pos; }
 
@@ -139,14 +140,15 @@ void Display::drawHeader() {
 
 void Display::drawDistance() {
     u8g2_.setFont(u8g2_font_6x12_mf);
+    const char* du = (unit_system_ == 1) ? "m" : "yd";
 
     if (staged_) {
         // Show target name + distance
         char buf[22];
         if (stage_name_[0] != '\0') {
-            snprintf(buf, sizeof(buf), "%-8s %4uyd", stage_name_, distance_yd_);
+            snprintf(buf, sizeof(buf), "%-8s %4u%s", stage_name_, distance_yd_, du);
         } else {
-            snprintf(buf, sizeof(buf), "Target   %4uyd", distance_yd_);
+            snprintf(buf, sizeof(buf), "Target   %4u%s", distance_yd_, du);
         }
         u8g2_.drawStr(0, 22, buf);
     } else {
@@ -174,7 +176,7 @@ void Display::drawDistance() {
         }
 
         // Unit label after digits
-        u8g2_.drawStr(x_start + 4 * char_w + 8, 22, "yd");
+        u8g2_.drawStr(x_start + 4 * char_w + 8, 22, du);
     }
 }
 
@@ -208,8 +210,15 @@ void Display::drawCorrections() {
 void Display::drawSensorBar() {
     u8g2_.setFont(u8g2_font_5x8_mf);
     char buf[26];
-    snprintf(buf, sizeof(buf), "%.0fF %.1f\" %.0f%%",
-             (double)temp_f_, (double)press_inhg_, (double)humidity_);
+    if (unit_system_ == 1) {
+        float temp_c = (temp_f_ - 32.0f) * 5.0f / 9.0f;
+        float press_hpa = press_inhg_ * 33.8639f;
+        snprintf(buf, sizeof(buf), "%.0fC %.0fhPa %.0f%%",
+                 (double)temp_c, (double)press_hpa, (double)humidity_);
+    } else {
+        snprintf(buf, sizeof(buf), "%.0fF %.1f\" %.0f%%",
+                 (double)temp_f_, (double)press_inhg_, (double)humidity_);
+    }
     u8g2_.drawStr(0, 63, buf);
 }
 
