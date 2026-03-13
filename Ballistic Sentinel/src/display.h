@@ -30,7 +30,9 @@ public:
     void setWifiOn(bool on);
     void setCant(float cant_deg);
     void setCantCalibration(float offset, float sensitivity);
-    void showSleep();
+    void showShutdown();
+    void clearScreen();
+    void showWakeProgress(uint8_t pct);
 
     // --- Data setters (called from main loop) ---
     void setMode(bool staged, uint8_t stage_idx = 0, uint8_t stage_total = 0);

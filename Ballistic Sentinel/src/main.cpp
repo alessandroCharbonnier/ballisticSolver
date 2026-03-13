@@ -131,6 +131,30 @@ void setup() {
     digitalWrite(cfg::PIN_LED, LOW);
 
     Serial.println("[main] Ready");
+
+    // ── Wake-from-sleep validation ─────────────────────────────────────
+    // After deep-sleep wakeup, require CENTER held for 5 s to fully boot.
+    // If released early, go straight back to sleep.
+    if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
+        Serial.println("[main] Woke from deep sleep — hold CENTER 5s to confirm");
+        const uint32_t wake_hold_ms = 5000;
+        uint32_t hold_start = millis();
+        bool confirmed = false;
+
+        while (millis() - hold_start < wake_hold_ms) {
+            if (digitalRead(cfg::PIN_BTN_CENTER) != LOW) {
+                // Button released too early — go back to sleep
+                Serial.println("[main] CENTER released — returning to sleep");
+                g_display.clearScreen();
+                g_input.configureWakeup();
+                esp_deep_sleep_start();
+            }
+            uint8_t pct = (uint8_t)((millis() - hold_start) * 100 / wake_hold_ms);
+            g_display.showWakeProgress(pct);
+            delay(50);
+        }
+        Serial.println("[main] Wake confirmed");
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -156,8 +180,9 @@ void loop() {
 
         // 5s hold CENTER → deep sleep
         if (btn.id == ButtonId::CENTER && btn.event == ButtonEvent::LONG_PRESS) {
-            g_display.showSleep();
-            delay(500);
+            g_display.showShutdown();
+            delay(1000);
+            g_display.clearScreen();
             g_input.configureWakeup();
             esp_deep_sleep_start();
         }
