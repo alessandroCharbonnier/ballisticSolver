@@ -10,14 +10,15 @@ validated to within 0.25% of the Python reference across 8 scenarios and 173 tra
   CIPM-2007 atmosphere model, spin drift (Litz formula), Miller stability, Coriolis-ready (disabled pending magnetometer calibration)
 - **All 9 standard drag tables**: G1, G7, G2, G5, G6, G8, GI, GS, RA4
 - **Multi-BC support** — velocity-stepped ballistic coefficients
-- **Three operating modes**:
+- **Four operating modes**:
   - **Live** — dial distance with a combination-lock style 4-digit display (yards)
   - **Staged** — pre-programmed target stages (PRS-style matches, up to 20)
   - **Sensor View** — real-time display of all sensor readings
+  - **Digital Level** — full-screen cant readout with graphical bubble level, "LEVEL" indicator + display inversion when within sensitivity threshold, directional tilt hints when off-level
 - **Real-time sensors** — BME280 (temperature/pressure/humidity), QMC5883P (compass heading), MPU6050 (cant/roll detection)
 - **Calypso ultrasonic anemometer** — NMEA 0183 wind input (prepared, UART2)
 - **Cant detection** — MPU6050 accelerometer with auto-calibration, visual cant slider, display auto-invert when level
-- **SH1106 1.3" OLED** — 128×64 display with header, distance, corrections, sensor bar
+- **SH1106 1.3" OLED** — 128×64 display with header, distance, corrections, sensor bar, scrolling menu with arrow indicators
 - **5-way navigation button** — debounced with double-press, long-press (deep sleep), and auto-repeat
 - **WiFi Access Point** — configure rifle/stages via a dark-themed web UI with captive portal
 - **Persistent storage** — NVS for rifle config, stage definitions, and cant calibration
@@ -239,6 +240,7 @@ Tolerance: max(0.5"/500yd × distance, 0.25% of absolute value)
 |---------|------|---------|
 | 1.0.0 | 2025-01-XX | Initial release — complete C++ ballistic engine, ESP32 firmware, web UI, 37 native tests, 173-point Python comparison |
 | 1.1.0 | 2026-03-13 | Power optimization: event-driven ballistic calc, BME280 forced mode, compass 10 Hz ODR, display 4 fps, split sensor intervals (cant 5 Hz / env 0.5 Hz), ESP32 light sleep, WiFi modem sleep, auto-dim (2 min / 80%), accelerometer-based auto deep-sleep (10 min / 0.43g threshold). Bug fixes: deep-sleep GPIO wakeup loop, wake-from-sleep phantom button press, display inversion persisting on shutdown/wake screens |
+| 1.2.0 | 2026-03-13 | New Digital Level mode with full-screen cant readout, graphical bubble level, sensitivity zone marks, "LEVEL" indicator with display inversion, and directional tilt hints. Scrolling main menu with up/down arrow indicators (supports 5+ items without shrinking text). WiFi toggle moved to last menu position |
 
 ## License
 

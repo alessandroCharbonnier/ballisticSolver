@@ -22,6 +22,8 @@ void Display::update() {
         drawMenu();
     } else if (app_state_ == APP_STATE_SENSORS) {
         drawSensorView();
+    } else if (app_state_ == APP_STATE_DIGITAL_LEVEL) {
+        drawDigitalLevel();
     } else {
         drawCantSlider();
         drawHeader();
@@ -33,7 +35,8 @@ void Display::update() {
 
     // Hardware-invert the display when cant is within the sensitivity
     // threshold — gives the shooter a clear "you're level" signal.
-    bool level = (app_state_ == APP_STATE_LIVE || app_state_ == APP_STATE_STAGE) &&
+    bool level = (app_state_ == APP_STATE_LIVE || app_state_ == APP_STATE_STAGE
+                  || app_state_ == APP_STATE_DIGITAL_LEVEL) &&
                  (fabsf(cant_deg_ - cant_offset_) <= cant_sensitivity_);
     if (level != inverted_) {
         inverted_ = level;
@@ -155,21 +158,46 @@ void Display::showWakeProgress(uint8_t pct) {
 void Display::drawMenu() {
     u8g2_.setFont(u8g2_font_6x12_mf);
 
-    int y = 14;
-    for (uint8_t i = 0; i < 4; ++i) {
-        if (i == menu_cursor_) {
+    constexpr uint8_t LINE_H       = 14;
+    constexpr uint8_t VISIBLE_MAX  = 4;   // 64px / 14px = 4 items
+    constexpr uint8_t TOTAL_ITEMS  = 5;
+
+    // Keep scroll window centred on the cursor
+    if (menu_cursor_ < menu_scroll_)
+        menu_scroll_ = menu_cursor_;
+    if (menu_cursor_ >= menu_scroll_ + VISIBLE_MAX)
+        menu_scroll_ = menu_cursor_ - VISIBLE_MAX + 1;
+
+    uint8_t visible = (TOTAL_ITEMS - menu_scroll_ < VISIBLE_MAX)
+                    ? TOTAL_ITEMS - menu_scroll_
+                    : VISIBLE_MAX;
+
+    int y = LINE_H;
+    for (uint8_t v = 0; v < visible; ++v) {
+        uint8_t idx = menu_scroll_ + v;
+        if (idx == menu_cursor_) {
             u8g2_.drawStr(2, y, ">");
         }
-        switch (i) {
+        switch (idx) {
             case 0: u8g2_.drawStr(14, y, "Live Shooting");  break;
             case 1: u8g2_.drawStr(14, y, "Stage Shooting"); break;
             case 2: u8g2_.drawStr(14, y, "Sensors");        break;
-            case 3:
+            case 3: u8g2_.drawStr(14, y, "Digital Level");   break;
+            case 4:
                 u8g2_.drawStr(14, y,
                     wifi_menu_on_ ? "WiFi [ON]" : "WiFi [OFF]");
                 break;
         }
-        y += 14;
+        y += LINE_H;
+    }
+
+    // Up arrow indicator (top-right) if items hidden above
+    if (menu_scroll_ > 0) {
+        drawArrowUp(118, 2);
+    }
+    // Down arrow indicator (bottom-right) if items hidden below
+    if (menu_scroll_ + VISIBLE_MAX < TOTAL_ITEMS) {
+        drawArrowDown(118, 55);
     }
 }
 
@@ -217,6 +245,52 @@ void Display::drawSensorView() {
         snprintf(buf, sizeof(buf), "Wind   --  N/A");
     }
     u8g2_.drawStr(0, y, buf);
+}
+
+void Display::drawDigitalLevel() {
+    float cant = cant_deg_ - cant_offset_;
+    bool is_level = fabsf(cant) <= cant_sensitivity_;
+
+    // Header
+    u8g2_.setFont(u8g2_font_5x8_mf);
+    u8g2_.drawStr(0, 8, "Digital Level");
+
+    if (is_level) {
+        // ── LEVEL: big, unmistakable status ──
+        u8g2_.setFont(u8g2_font_7x14_mf);
+        const char* msg = "== LEVEL ==";
+        int tw = u8g2_.getStrWidth(msg);
+        u8g2_.drawStr((128 - tw) / 2, 38, msg);
+    } else {
+        // ── Off-level: show angle + direction hint ──
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%+.1f", (double)cant);
+        u8g2_.setFont(u8g2_font_7x14_mf);
+        int tw = u8g2_.getStrWidth(buf);
+        u8g2_.drawStr((128 - tw) / 2, 28, buf);
+
+        u8g2_.setFont(u8g2_font_5x8_mf);
+        const char* hint = (cant > 0.0f) ? "tilt LEFT" : "tilt RIGHT";
+        tw = u8g2_.getStrWidth(hint);
+        u8g2_.drawStr((128 - tw) / 2, 40, hint);
+    }
+
+    // ── Graphical bubble level bar ──
+    const int bx = 14, bw = 100, by = 50, bh = 10;
+    u8g2_.drawFrame(bx, by, bw, bh);
+    // Centre tick
+    u8g2_.drawVLine(bx + bw / 2, by - 2, bh + 4);
+    // Sensitivity zone marks
+    int zone = (int)(cant_sensitivity_ / 15.0f * (bw / 2));
+    u8g2_.drawVLine(bx + bw / 2 - zone, by, bh);
+    u8g2_.drawVLine(bx + bw / 2 + zone, by, bh);
+
+    // Bubble indicator (clamp ±15°)
+    float c = cant;
+    if (c < -15.0f) c = -15.0f;
+    if (c >  15.0f) c =  15.0f;
+    int ix = bx + 1 + (int)((c + 15.0f) / 30.0f * (bw - 4));
+    u8g2_.drawBox(ix, by + 1, 3, bh - 2);
 }
 
 void Display::drawCantSlider() {

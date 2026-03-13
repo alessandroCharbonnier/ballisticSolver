@@ -78,6 +78,7 @@ void ModeManager::handleButton(ButtonState btn) {
         case AppState::LIVE_SHOOTING:  handleLiveButton(btn);  break;
         case AppState::STAGE_SHOOTING: handleStageButton(btn); break;
         case AppState::SENSOR_VIEW:    handleSensorButton(btn); break;
+        case AppState::DIGITAL_LEVEL:  handleDigitalLevelButton(btn); break;
     }
 }
 
@@ -97,7 +98,8 @@ void ModeManager::handleMenuButton(ButtonState btn) {
             case 0: app_state_ = AppState::LIVE_SHOOTING;  break;
             case 1: app_state_ = AppState::STAGE_SHOOTING; break;
             case 2: app_state_ = AppState::SENSOR_VIEW;    break;
-            case 3:
+            case 3: app_state_ = AppState::DIGITAL_LEVEL;  break;
+            case 4:
                 wifi_on_ = !wifi_on_;
                 wifi_toggled_ = true;
                 break;
@@ -156,6 +158,13 @@ void ModeManager::handleStageButton(ButtonState btn) {
 }
 
 void ModeManager::handleSensorButton(ButtonState btn) {
+    // Double-press CENTER → back to menu
+    if (btn.id == ButtonId::CENTER && btn.event == ButtonEvent::DOUBLE_PRESS) {
+        app_state_ = AppState::MAIN_MENU;
+    }
+}
+
+void ModeManager::handleDigitalLevelButton(ButtonState btn) {
     // Double-press CENTER → back to menu
     if (btn.id == ButtonId::CENTER && btn.event == ButtonEvent::DOUBLE_PRESS) {
         app_state_ = AppState::MAIN_MENU;

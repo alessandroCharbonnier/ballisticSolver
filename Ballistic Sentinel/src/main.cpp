@@ -78,6 +78,11 @@ static void updateDisplay() {
         g_display.setCantCalibration(g_rifle.cant_offset,
                                       g_rifle.cant_sensitivity);
         g_display.setWind(wd.speed_mph, wd.angle_deg, wd.available);
+    } else if (g_modes.appState() == AppState::DIGITAL_LEVEL) {
+        const auto& sd = g_sensors.data();
+        g_display.setCant(sd.cant_deg);
+        g_display.setCantCalibration(g_rifle.cant_offset,
+                                      g_rifle.cant_sensitivity);
     } else {
         bool staged = (g_modes.appState() == AppState::STAGE_SHOOTING);
         g_display.setMode(staged, g_modes.stageIndex(), g_modes.stageCount());

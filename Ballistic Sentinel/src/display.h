@@ -7,10 +7,11 @@
 #include "config.h"
 
 // AppState values (avoid circular include with modes.h)
-constexpr uint8_t APP_STATE_MENU    = 0;
-constexpr uint8_t APP_STATE_LIVE    = 1;
-constexpr uint8_t APP_STATE_STAGE   = 2;
-constexpr uint8_t APP_STATE_SENSORS = 3;
+constexpr uint8_t APP_STATE_MENU          = 0;
+constexpr uint8_t APP_STATE_LIVE          = 1;
+constexpr uint8_t APP_STATE_STAGE         = 2;
+constexpr uint8_t APP_STATE_SENSORS       = 3;
+constexpr uint8_t APP_STATE_DIGITAL_LEVEL = 4;
 
 /// Display layout (128×64 monochrome, monospace fonts):
 ///   Y  0–9   : mode header + WiFi icon          (5×8 font)
@@ -65,6 +66,7 @@ private:
     // Menu & cant state
     uint8_t  app_state_    = APP_STATE_MENU;
     uint8_t  menu_cursor_  = 0;
+    uint8_t  menu_scroll_   = 0; // first visible menu item index
     bool     wifi_menu_on_ = false;
     float    cant_deg_        = 0.0f;
     float    cant_offset_     = 0.0f;
@@ -98,6 +100,7 @@ private:
     void drawMenu();
     void drawSensorView();
     void drawCantSlider();
+    void drawDigitalLevel();
     void drawArrowUp(int x, int y);
     void drawArrowDown(int x, int y);
     void drawArrowRight(int x, int y);
