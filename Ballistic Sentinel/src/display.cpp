@@ -44,6 +44,13 @@ void Display::update() {
     }
 }
 
+void Display::setDimmed(bool dim) {
+    if (dim == dimmed_) return;
+    dimmed_ = dim;
+    u8g2_.setContrast(dim ? cfg::DISPLAY_CONTRAST_DIM
+                          : cfg::DISPLAY_CONTRAST_FULL);
+}
+
 // ── Data setters ───────────────────────────────────────────────────────────
 
 void Display::setMode(bool staged, uint8_t idx, uint8_t total) {
@@ -96,6 +103,14 @@ void Display::setWind(float s, float a, bool ok) {
 }
 
 void Display::showShutdown() {
+    // Reset inversion so shutdown screen is always normal
+    if (inverted_) {
+        inverted_ = false;
+        u8x8_t* u8x8 = u8g2_.getU8x8();
+        u8x8_cad_StartTransfer(u8x8);
+        u8x8_cad_SendCmd(u8x8, 0xA6);
+        u8x8_cad_EndTransfer(u8x8);
+    }
     u8g2_.clearBuffer();
     u8g2_.setFont(u8g2_font_6x12_mf);
     u8g2_.drawStr(16, 36, "Shutting Down");
@@ -103,11 +118,25 @@ void Display::showShutdown() {
 }
 
 void Display::clearScreen() {
+    if (inverted_) {
+        inverted_ = false;
+        u8x8_t* u8x8 = u8g2_.getU8x8();
+        u8x8_cad_StartTransfer(u8x8);
+        u8x8_cad_SendCmd(u8x8, 0xA6);
+        u8x8_cad_EndTransfer(u8x8);
+    }
     u8g2_.clearBuffer();
     u8g2_.sendBuffer();
 }
 
 void Display::showWakeProgress(uint8_t pct) {
+    if (inverted_) {
+        inverted_ = false;
+        u8x8_t* u8x8 = u8g2_.getU8x8();
+        u8x8_cad_StartTransfer(u8x8);
+        u8x8_cad_SendCmd(u8x8, 0xA6);
+        u8x8_cad_EndTransfer(u8x8);
+    }
     u8g2_.clearBuffer();
     u8g2_.setFont(u8g2_font_5x8_mf);
     u8g2_.drawStr(24, 26, "Hold to wake...");

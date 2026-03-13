@@ -5,6 +5,7 @@
 #include "sensors.h"
 
 #include <WiFi.h>
+#include <esp_wifi.h>
 #include <DNSServer.h>
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
@@ -203,6 +204,9 @@ void WebServer_::begin() {
 
     WiFi.mode(WIFI_AP);
     WiFi.softAP(cfg::WIFI_SSID, cfg::WIFI_PASS);
+
+    // Enable modem sleep to reduce WiFi power (~120 mA → ~15-20 mA avg)
+    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
 
     // Captive portal: redirect all DNS queries to the AP IP
     if (!s_dns) {

@@ -83,10 +83,19 @@ constexpr uint8_t DISPLAY_HEIGHT   = 64;
 // ---------------------------------------------------------------------------
 //  Application Timing
 // ---------------------------------------------------------------------------
-constexpr uint16_t CALC_INTERVAL_MS = 5000;   // recalculate every 5 s
-constexpr uint16_t DISPLAY_FPS      = 10;     // display refresh rate
-constexpr uint16_t SENSOR_INTERVAL_MS = 200;  // sensor read interval (5 Hz)
+constexpr uint16_t DISPLAY_FPS        = 4;      // display refresh rate
+constexpr uint16_t ENV_SENSOR_INTERVAL_MS  = 2000;  // BME280 + compass (0.5 Hz)
+constexpr uint16_t CANT_SENSOR_INTERVAL_MS = 200;   // MPU6050 cant only (5 Hz)
 constexpr uint8_t  CANT_CALIB_SAMPLES = 20;   // samples to average for cant calibration
+
+// ---------------------------------------------------------------------------
+//  Auto-Dim & Auto-Sleep (motion-based)
+// ---------------------------------------------------------------------------
+constexpr uint32_t AUTO_DIM_TIMEOUT_MS     = 120000;  // 2min → dim display
+constexpr uint32_t AUTO_SLEEP_TIMEOUT_MS   = 600000;  // 10min without motion → deep sleep
+constexpr uint8_t  DISPLAY_CONTRAST_FULL   = 255;    // normal brightness
+constexpr uint8_t  DISPLAY_CONTRAST_DIM    = 35;     // ~20% of full (~80% reduction)
+constexpr float    MOTION_THRESHOLD_MPS2   = 4.2f;   // accel delta in m/s² (~0.43g)
 
 // ---------------------------------------------------------------------------
 //  NVS Storage Namespace

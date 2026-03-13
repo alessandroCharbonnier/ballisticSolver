@@ -47,6 +47,11 @@ public:
     uint8_t      unitTemperature() const { return unit_temperature_; }
     uint8_t      unitPressure()    const { return unit_pressure_; }
 
+    /// Returns true if the target distance changed since last call.
+    bool         distanceChanged();
+    /// Returns true if config was reloaded (dirty flag, cleared on read).
+    bool         configChanged();
+
 private:
     AppState app_state_   = AppState::MAIN_MENU;
     uint8_t  menu_cursor_ = 0;
@@ -72,6 +77,9 @@ private:
     uint8_t unit_distance_    = 0;
     uint8_t unit_temperature_ = 0;
     uint8_t unit_pressure_    = 0;
+    uint16_t prev_distance_  = 0;
+    bool     distance_dirty_ = true;
+    bool     config_dirty_   = true;
 
     void configureCaclulator(const RifleConfig& rifle);
     void adjustDigit(int delta);

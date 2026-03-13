@@ -36,7 +36,20 @@ public:
 
     const SensorData& data() const { return data_; }
 
+    /// Read only the MPU6050 cant (fast, for high-rate polling).
+    void updateCant();
+
+    /// Read BME280 + compass (slow environmental sensors).
+    void updateEnvironment();
+
+    /// Returns true if significant motion was detected since last call.
+    bool motionDetected();
+
 private:
+    float prev_ax_ = 0.0f;
+    float prev_ay_ = 0.0f;
+    float prev_az_ = 0.0f;
+    bool  motion_detected_ = false;
     SensorData data_;
     uint8_t calib_remaining_ = 0;
     float   calib_accum_     = 0.0f;

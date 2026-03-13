@@ -7,6 +7,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <esp_sleep.h>
+#include <esp_wifi.h>
 
 #include "config.h"
 #include "display.h"
@@ -36,9 +37,15 @@ StageConfig        g_stages;
 volatile bool g_config_changed = false;
 
 // Timing
-static uint32_t s_last_calc    = 0;
-static uint32_t s_last_sensor  = 0;
-static uint32_t s_last_display = 0;
+static uint32_t s_last_env_sensor  = 0;
+static uint32_t s_last_cant_sensor = 0;
+static uint32_t s_last_display     = 0;
+
+// Activity tracking for auto-sleep
+static uint32_t s_last_activity    = 0;
+
+static bool     s_display_dirty    = true;
+static bool     s_calc_needed      = true;
 
 static constexpr uint32_t DISPLAY_INTERVAL_MS = 1000 / cfg::DISPLAY_FPS;
 
@@ -132,6 +139,8 @@ void setup() {
 
     Serial.println("[main] Ready");
 
+    s_last_activity = millis();
+
     // ── Wake-from-sleep validation ─────────────────────────────────────
     // After deep-sleep wakeup, require CENTER held for 5 s to fully boot.
     // If released early, go straight back to sleep.
@@ -154,6 +163,13 @@ void setup() {
             delay(50);
         }
         Serial.println("[main] Wake confirmed");
+
+        // Wait for CENTER to be released before entering loop,
+        // otherwise poll() sees it as a new press event.
+        while (digitalRead(cfg::PIN_BTN_CENTER) == LOW) {
+            delay(10);
+        }
+        delay(cfg::BTN_DEBOUNCE_MS);  // let debounce settle
     }
 }
 
@@ -178,12 +194,18 @@ void loop() {
             btn_names[static_cast<uint8_t>(btn.id)],
             evt_names[static_cast<uint8_t>(btn.event)]);
 
+        s_last_activity = now;
+        s_display_dirty = true;
+
         // 5s hold CENTER → deep sleep
         if (btn.id == ButtonId::CENTER && btn.event == ButtonEvent::LONG_PRESS) {
             g_display.showShutdown();
             delay(1000);
             g_display.clearScreen();
-            g_input.configureWakeup();
+            // Clear light-sleep wakeup sources before deep sleep
+            esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_GPIO);
+            esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
+            g_input.configureWakeup();  // ext0 only
             esp_deep_sleep_start();
         }
 
@@ -205,6 +227,9 @@ void loop() {
         g_config_changed = false;
         g_storage.load(g_rifle, g_stages);   // re-read what webserver saved
         applyConfig();
+        s_calc_needed = true;
+        s_display_dirty = true;
+        s_last_activity = now;
     }
 
     // ── Wind sensor polling ───────────────────────────────────────────────
@@ -217,25 +242,80 @@ void loop() {
     if (g_sensors.cantCalibrationDone()) {
         g_rifle.cant_offset = g_sensors.cantCalibrationResult();
         g_storage.save(g_rifle, g_stages);
+        s_display_dirty = true;
         Serial.printf("[main] Cant calibrated: offset=%.2f\n",
                       (double)g_rifle.cant_offset);
     }
 
-    // ── Sensor read (1 Hz) ────────────────────────────────────────────────
-    if (now - s_last_sensor >= cfg::SENSOR_INTERVAL_MS) {
-        s_last_sensor = now;
-        g_sensors.update();
+    // ── MPU6050 cant read (5 Hz — fast for live level indicator) ──────────
+    if (now - s_last_cant_sensor >= cfg::CANT_SENSOR_INTERVAL_MS) {
+        s_last_cant_sensor = now;
+        g_sensors.updateCant();
+        s_display_dirty = true;
     }
 
-    // ── Ballistic calculation (1 Hz) ─────────────────────────────────────
-    if (now - s_last_calc >= cfg::CALC_INTERVAL_MS) {
-        s_last_calc = now;
+    // ── Environmental sensors (BME280 + compass, every 2 s) ──────────────
+    if (now - s_last_env_sensor >= cfg::ENV_SENSOR_INTERVAL_MS) {
+        s_last_env_sensor = now;
+        g_sensors.updateEnvironment();
+        s_display_dirty = true;
+    }
+
+    // ── Motion-based activity tracking ────────────────────────────────────
+    if (g_sensors.motionDetected()) {
+        s_last_activity = now;
+        Serial.println("[power] Motion detected — activity timer reset");
+    }
+
+    // ── Auto-dim after inactivity ─────────────────────────────────────────
+    bool should_dim = (now - s_last_activity > cfg::AUTO_DIM_TIMEOUT_MS);
+    g_display.setDimmed(should_dim);
+
+    // ── Auto deep-sleep on inactivity (no motion + no button) ─────────────
+    if (!g_web.isActive()
+        && (now - s_last_activity > cfg::AUTO_SLEEP_TIMEOUT_MS))
+    {
+        Serial.println("[main] No motion detected — entering deep sleep");
+        g_display.showShutdown();
+        delay(500);
+        g_display.clearScreen();
+        // Clear light-sleep wakeup sources before deep sleep
+        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_GPIO);
+        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
+        g_input.configureWakeup();  // ext0 only
+        esp_deep_sleep_start();
+    }
+
+    // ── Ballistic calculation (on distance or config change only) ─────────
+    if (g_modes.distanceChanged() || g_modes.configChanged() || s_calc_needed) {
+        s_calc_needed = false;
         g_modes.compute(g_sensors.data(), g_wind.data());
+        s_display_dirty = true;
     }
 
-    // ── Display refresh (10 fps) ─────────────────────────────────────────
-    if (now - s_last_display >= DISPLAY_INTERVAL_MS) {
+    // ── Display refresh ──────────────────────────────────────────────────
+    if (s_display_dirty && (now - s_last_display >= DISPLAY_INTERVAL_MS)) {
         s_last_display = now;
+        s_display_dirty = false;
         updateDisplay();
+    }
+
+    // ── Light sleep when idle (skip if WiFi AP is active) ────────────────
+    if (!g_web.isActive()) {
+        uint32_t next_cant    = s_last_cant_sensor + cfg::CANT_SENSOR_INTERVAL_MS;
+        uint32_t next_env     = s_last_env_sensor  + cfg::ENV_SENSOR_INTERVAL_MS;
+        uint32_t next_display = s_last_display     + DISPLAY_INTERVAL_MS;
+        uint32_t next_wake    = next_cant;
+        if (next_env < next_wake) next_wake = next_env;
+        if (s_display_dirty && next_display < next_wake) next_wake = next_display;
+
+        int32_t sleep_ms = static_cast<int32_t>(next_wake - now);
+        if (sleep_ms > 10) {
+            esp_sleep_enable_timer_wakeup(
+                static_cast<uint64_t>(sleep_ms) * 1000ULL);
+            // Button ISRs will also wake from light sleep
+            esp_sleep_enable_gpio_wakeup();
+            esp_light_sleep_start();
+        }
     }
 }

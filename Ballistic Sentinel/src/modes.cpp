@@ -23,6 +23,8 @@ void ModeManager::reconfigure(const RifleConfig& rifle, const StageConfig& stage
     unit_distance_    = rifle.unit_distance;
     unit_temperature_ = rifle.unit_temperature;
     unit_pressure_    = rifle.unit_pressure;
+    config_dirty_ = true;
+    distance_dirty_ = true;
 
     // Click size: convert MOA to radians
     click_size_rad_ = rifle.click_size_moa * ballistic::kMoaToRad;
@@ -138,12 +140,16 @@ void ModeManager::handleStageButton(ButtonState btn) {
 
     switch (btn.id) {
         case ButtonId::RIGHT:
-            if (stage_count_ > 0)
+            if (stage_count_ > 0) {
                 stage_idx_ = (stage_idx_ + 1) % stage_count_;
+                distance_dirty_ = true;
+            }
             break;
         case ButtonId::LEFT:
-            if (stage_count_ > 0)
+            if (stage_count_ > 0) {
                 stage_idx_ = (stage_idx_ == 0) ? stage_count_ - 1 : stage_idx_ - 1;
+                distance_dirty_ = true;
+            }
             break;
         default: break;
     }
@@ -171,6 +177,7 @@ void ModeManager::adjustDigit(int delta) {
 
     live_distance_ = static_cast<uint16_t>(
         digits[0] * 1000 + digits[1] * 100 + digits[2] * 10 + digits[3]);
+    distance_dirty_ = true;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -241,6 +248,22 @@ uint16_t ModeManager::distance() const {
         return stages_[stage_idx_].distance_yd;
     }
     return 0;
+}
+
+bool ModeManager::distanceChanged() {
+    uint16_t cur = distance();
+    if (cur != prev_distance_ || distance_dirty_) {
+        prev_distance_ = cur;
+        distance_dirty_ = false;
+        return true;
+    }
+    return false;
+}
+
+bool ModeManager::configChanged() {
+    bool c = config_dirty_;
+    config_dirty_ = false;
+    return c;
 }
 
 uint16_t ModeManager::displayDistance() const {

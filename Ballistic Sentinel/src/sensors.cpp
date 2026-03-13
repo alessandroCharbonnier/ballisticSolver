@@ -21,6 +21,8 @@ namespace qmc5883p {
     // CTRL1: OSR(7:6) | RNG(5:4) | ODR(3:2) | MODE(1:0)
     //   OSR=00 (512)  RNG=00 (2G)  ODR=11 (200Hz)  MODE=01 (continuous)
     constexpr uint8_t CTRL1_CONT_200HZ = 0x0D;
+    //   OSR=00 (512)  RNG=00 (2G)  ODR=01 (10Hz)   MODE=01 (continuous)
+    constexpr uint8_t CTRL1_CONT_10HZ  = 0x05;
 
     static void writeReg(uint8_t reg, uint8_t val) {
         Wire.beginTransmission(cfg::I2C_ADDR_QMC5883P);
@@ -109,9 +111,9 @@ void Sensors::begin() {
     // BME280
     data_.bme_ok = s_bme.begin(cfg::I2C_ADDR_BME280, &Wire);
     if (data_.bme_ok) {
-        // Weather-station mode: low noise, slow sampling
+        // Forced mode: sensor sleeps between on-demand reads (~1 µA idle)
         s_bme.setSampling(
-            Adafruit_BME280::MODE_NORMAL,
+            Adafruit_BME280::MODE_FORCED,
             Adafruit_BME280::SAMPLING_X2,   // temp
             Adafruit_BME280::SAMPLING_X16,  // pressure
             Adafruit_BME280::SAMPLING_X1,   // humidity
@@ -124,7 +126,9 @@ void Sensors::begin() {
     Wire.beginTransmission(cfg::I2C_ADDR_QMC5883P);
     data_.compass_ok = (Wire.endTransmission() == 0) && qmc5883p::init();
     if (data_.compass_ok) {
-        Serial.println("[sensors] QMC5883P OK at 0x2C");
+        // Lower ODR to 10 Hz for power savings (was 200 Hz)
+        qmc5883p::writeReg(qmc5883p::REG_CTRL1, qmc5883p::CTRL1_CONT_10HZ);
+        Serial.println("[sensors] QMC5883P OK at 0x2C (10 Hz)");
     } else {
         Serial.println("[sensors] QMC5883P not found at 0x2C");
     }
@@ -138,8 +142,14 @@ void Sensors::begin() {
 }
 
 void Sensors::update() {
-    // ── BME280 ────────────────────────────────────────────────────────────
+    updateEnvironment();
+    updateCant();
+}
+
+void Sensors::updateEnvironment() {
+    // ── BME280 (forced mode — trigger measurement then read) ──────────────
     if (data_.bme_ok) {
+        s_bme.takeForcedMeasurement();
         float temp_c      = s_bme.readTemperature();       // °C
         float press_hpa   = s_bme.readPressure() / 100.0f; // hPa
         float humidity    = s_bme.readHumidity();           // %
@@ -154,12 +164,27 @@ void Sensors::update() {
         float h = qmc5883p::readHeading();
         if (h >= 0.0f) data_.heading_deg = headingSmooth(h);
     }
+}
 
-    // ── MPU6050 cant (roll) ───────────────────────────────────────────────
+void Sensors::updateCant() {
+    // ── MPU6050 cant (roll) + motion detection ────────────────────────────
     if (data_.mpu_ok) {
         sensors_event_t a, g, temp;
         s_mpu.getEvent(&a, &g, &temp);
         float raw = atan2f(a.acceleration.y, a.acceleration.z) * 180.0f / (float)M_PI;
+
+        // Motion detection: compare against previous accelerometer reading
+        // Note: Adafruit MPU6050 getEvent() returns acceleration in m/s²
+        float dx = a.acceleration.x - prev_ax_;
+        float dy = a.acceleration.y - prev_ay_;
+        float dz = a.acceleration.z - prev_az_;
+        float delta = sqrtf(dx * dx + dy * dy + dz * dz);
+        if (delta > cfg::MOTION_THRESHOLD_MPS2) {
+            motion_detected_ = true;
+        }
+        prev_ax_ = a.acceleration.x;
+        prev_ay_ = a.acceleration.y;
+        prev_az_ = a.acceleration.z;
 
         // 1D Kalman filter
         if (!kf_init_) {
@@ -186,6 +211,12 @@ void Sensors::update() {
             }
         }
     }
+}
+
+bool Sensors::motionDetected() {
+    bool m = motion_detected_;
+    motion_detected_ = false;
+    return m;
 }
 
 void Sensors::startCantCalibration() {

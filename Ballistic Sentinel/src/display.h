@@ -33,6 +33,7 @@ public:
     void showShutdown();
     void clearScreen();
     void showWakeProgress(uint8_t pct);
+    void setDimmed(bool dim);
 
     // --- Data setters (called from main loop) ---
     void setMode(bool staged, uint8_t stage_idx = 0, uint8_t stage_total = 0);
@@ -69,6 +70,7 @@ private:
     float    cant_offset_     = 0.0f;
     float    cant_sensitivity_= 1.0f;
     bool     inverted_        = false;
+    bool     dimmed_           = false;
 
     // Correction display
     float    v_corr_       = 0.0f;
