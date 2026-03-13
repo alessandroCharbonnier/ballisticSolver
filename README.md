@@ -7,19 +7,22 @@ validated to within 0.25% of the Python reference across 8 scenarios and 173 tra
 ## Features
 
 - **Pure C++ ballistic engine** — header-only library with RK4 integration, PCHIP interpolation,
-  CIPM-2007 atmosphere model, full 3D Coriolis, spin drift (Litz formula), Miller stability
+  CIPM-2007 atmosphere model, spin drift (Litz formula), Miller stability, Coriolis-ready (disabled pending magnetometer calibration)
 - **All 9 standard drag tables**: G1, G7, G2, G5, G6, G8, GI, GS, RA4
 - **Multi-BC support** — velocity-stepped ballistic coefficients
-- **Two shooting modes**:
+- **Three operating modes**:
   - **Live** — dial distance with a combination-lock style 4-digit display (yards)
   - **Staged** — pre-programmed target stages (PRS-style matches, up to 20)
-- **Real-time sensors** — BME280 (temperature/pressure/humidity), QMC5883L (compass heading for Coriolis)
+  - **Sensor View** — real-time display of all sensor readings
+- **Real-time sensors** — BME280 (temperature/pressure/humidity), QMC5883P (compass heading), MPU6050 (cant/roll detection)
 - **Calypso ultrasonic anemometer** — NMEA 0183 wind input (prepared, UART2)
+- **Cant detection** — MPU6050 accelerometer with auto-calibration, visual cant slider, display auto-invert when level
 - **SH1106 1.3" OLED** — 128×64 display with header, distance, corrections, sensor bar
-- **5-way navigation button** — debounced with long-press and auto-repeat
-- **WiFi Access Point** — configure rifle/stages via a dark-themed web UI
-- **Persistent storage** — NVS for rifle config and stage definitions
-- **Preset calibers** — 6.5CM, 6CM, 6.5PRC, .308, .300WM, .300PRC, .338LM, .375CT, .50BMG
+- **5-way navigation button** — debounced with double-press, long-press (deep sleep), and auto-repeat
+- **WiFi Access Point** — configure rifle/stages via a dark-themed web UI with captive portal
+- **Persistent storage** — NVS for rifle config, stage definitions, and cant calibration
+- **Power management** — auto-dim (2.5 min), motion-based auto deep-sleep (5 min), light sleep between sensor intervals
+- **Unit preferences** — configurable imperial/metric units for distance, velocity, weight, length, temperature, and pressure
 
 ## Hardware
 
@@ -30,7 +33,8 @@ validated to within 0.25% of the Python reference across 8 scenarios and 173 tra
 | MCU | ESP32-WROOM-32 (classic) | 520KB SRAM, 4MB Flash |
 | Display | 1.3" OLED SH1106 I2C | 128×64, addr 0x3C |
 | Env sensor | BME280 | Temp/press/humidity, addr 0x76 |
-| Compass | QMC5883L (GY-271 module) | 3-axis magnetometer, addr 0x0D |
+| Compass | QMC5883P (GY-271 module) | 3-axis magnetometer, addr 0x2C |
+| Accelerometer | MPU6050 | Cant/roll detection, addr 0x68 |
 | Button | 5-way digital navigation | One GPIO per direction + center |
 | Wind sensor | Calypso ultrasonic (optional) | NMEA 0183 at 4800 baud |
 | LED | On-board ESP32 LED | GPIO 2 |
@@ -39,13 +43,13 @@ validated to within 0.25% of the Python reference across 8 scenarios and 173 tra
 
 | GPIO | Function | Direction | Notes |
 |------|----------|-----------|-------|
-| **21** | I2C SDA | Bidirectional | Shared bus: OLED + BME280 + QMC5883L |
+| **21** | I2C SDA | Bidirectional | Shared bus: OLED + BME280 + QMC5883P + MPU6050 |
 | **22** | I2C SCL | Output | 400 kHz Fast-mode |
 | **32** | Button UP | Input (pull-up) | Active-low |
 | **33** | Button DOWN | Input (pull-up) | Active-low |
 | **25** | Button LEFT | Input (pull-up) | Active-low |
 | **26** | Button RIGHT | Input (pull-up) | Active-low |
-| **27** | Button CENTER | Input (pull-up) | Active-low, long-press = WiFi toggle |
+| **27** | Button CENTER | Input (pull-up) | Active-low, long-press (5s) = deep sleep, double-press = back |
 | **16** | Wind UART2 RX | Input | ← Calypso TX (prepared) |
 | **17** | Wind UART2 TX | Output | → Calypso RX (prepared) |
 | **2** | Status LED | Output | Solid = WiFi AP active |
@@ -56,7 +60,8 @@ validated to within 0.25% of the Python reference across 8 scenarios and 173 tra
 |---------|--------|----------|
 | 0x3C | SH1106 OLED | U8g2 HW I2C |
 | 0x76 | BME280 | Adafruit BME280 |
-| 0x0D | QMC5883L | QMC5883LCompass |
+| 0x2C | QMC5883P | 3-axis magnetometer |
+| 0x68 | MPU6050 | Adafruit MPU6050 |
 
 ### Wiring Diagram
 
@@ -64,10 +69,12 @@ validated to within 0.25% of the Python reference across 8 scenarios and 173 tra
 ESP32-WROOM-32
 ├── GPIO 21 (SDA) ──┬── OLED SDA
 │                    ├── BME280 SDA
-│                    └── QMC5883L SDA
+│                    ├── QMC5883P SDA
+│                    └── MPU6050 SDA
 ├── GPIO 22 (SCL) ──┬── OLED SCL
 │                    ├── BME280 SCL
-│                    └── QMC5883L SCL
+│                    ├── QMC5883P SCL
+│                    └── MPU6050 SCL
 ├── GPIO 32 ──── BTN UP
 ├── GPIO 33 ──── BTN DOWN
 ├── GPIO 25 ──── BTN LEFT
@@ -97,12 +104,12 @@ Ballistic Sentinel/
 │   ├── config.h            # Pin assignments, timing constants
 │   ├── display.h/.cpp      # U8g2 SH1106 OLED driver
 │   ├── input.h/.cpp        # 5-way button with debounce/repeat
-│   ├── sensors.h/.cpp      # BME280 + QMC5883L polling
+│   ├── sensors.h/.cpp      # BME280 + QMC5883P + MPU6050 polling
 │   ├── storage.h/.cpp      # NVS persistent config
 │   ├── web_ui.h            # PROGMEM HTML/CSS/JS
 │   ├── webserver.h/.cpp    # ESPAsyncWebServer REST API
 │   ├── wind.h/.cpp         # Calypso NMEA parser
-│   ├── modes.h/.cpp        # Live/Staged mode manager
+│   ├── modes.h/.cpp        # Live/Staged/Sensor mode manager
 │   └── main.cpp            # Firmware entry point
 ├── test/
 │   ├── test_native/        # Unity C++ unit tests (37 cases)
@@ -125,7 +132,7 @@ calc.setWind(10.0, 90.0);               // speed_fps, direction_deg
 calc.solve();                            // find zero elevation
 
 auto corr = calc.correction(800);        // at 800 yards
-// corr.elevation_moa, corr.windage_moa, corr.velocity_fps, etc.
+// corr.vertical, corr.horizontal, corr.velocity_fps, etc.
 
 auto traj = calc.trajectory(2000, 100);  // max range, step (yards)
 for (auto& pt : traj) {
@@ -169,14 +176,16 @@ Expected: **173/173 PASS** (8 scenarios × up to 31 points each)
 
 ## Web Interface
 
-1. Long-press CENTER button (3s) to start WiFi AP
+1. Select **WiFi Toggle** from the main menu to start WiFi AP
 2. Connect to **BallisticSentinel** (password: `longrange`)
-3. Open `http://192.168.4.1` in any browser
-4. Configure rifle parameters and stage targets
-5. Long-press CENTER again to turn off WiFi
+3. Open `http://192.168.4.1` in any browser (captive portal auto-redirects)
+4. Configure rifle parameters, unit preferences, and stage targets
+5. Select **WiFi Toggle** again to turn off WiFi
 
 The web UI uses a dark theme (`#0d1117` background) with green accents (`#16c79a`)
-and a monospace font. Includes preset caliber buttons for quick setup.
+and a Courier New monospace font. Includes unit conversion (imperial/metric),
+multi-BC configuration, powder sensitivity calculator, cant calibration, and
+correction unit selection (MOA, SMOA, MRAD, CM, CLICKS).
 
 ### API Endpoints
 
@@ -186,6 +195,7 @@ and a monospace font. Includes preset caliber buttons for quick setup.
 | GET | `/api/config` | Current rifle + stage config (JSON) |
 | POST | `/api/save` | Save rifle + stage config |
 | POST | `/api/wifi/off` | Shut down WiFi AP |
+| POST | `/api/cant/calibrate` | Start cant auto-calibration |
 
 ## Test Coverage
 
