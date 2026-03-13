@@ -3,14 +3,106 @@
 
 #include <Wire.h>
 #include <Adafruit_BME280.h>
-#include <QMC5883LCompass.h>
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <cmath>
 
+// ── QMC5883P register definitions ─────────────────────────────────────────
+namespace qmc5883p {
+    constexpr uint8_t REG_CHIP_ID   = 0x00;  // should read 0x80
+    constexpr uint8_t REG_DATA      = 0x01;  // 6 bytes: XL XH YL YH ZL ZH
+    constexpr uint8_t REG_STATUS    = 0x09;  // bit 0 = DRDY
+    constexpr uint8_t REG_CTRL1     = 0x0A;
+    constexpr uint8_t REG_CTRL2     = 0x0B;
+    constexpr uint8_t REG_SET_RESET = 0x29;
+
+    constexpr uint8_t CHIP_ID_VAL   = 0x80;
+
+    // CTRL1: OSR(7:6) | RNG(5:4) | ODR(3:2) | MODE(1:0)
+    //   OSR=00 (512)  RNG=00 (2G)  ODR=11 (200Hz)  MODE=01 (continuous)
+    constexpr uint8_t CTRL1_CONT_200HZ = 0x0D;
+
+    static void writeReg(uint8_t reg, uint8_t val) {
+        Wire.beginTransmission(cfg::I2C_ADDR_QMC5883P);
+        Wire.write(reg);
+        Wire.write(val);
+        Wire.endTransmission();
+    }
+
+    static uint8_t readReg(uint8_t reg) {
+        Wire.beginTransmission(cfg::I2C_ADDR_QMC5883P);
+        Wire.write(reg);
+        Wire.endTransmission(false);
+        Wire.requestFrom(cfg::I2C_ADDR_QMC5883P, (uint8_t)1);
+        return Wire.available() ? Wire.read() : 0xFF;
+    }
+
+    static bool init() {
+        // Verify chip ID
+        uint8_t id = readReg(REG_CHIP_ID);
+        Serial.printf("[sensors] QMC5883P chip ID: 0x%02X (expected 0x%02X)\n", id, CHIP_ID_VAL);
+        if (id != CHIP_ID_VAL) return false;
+
+        writeReg(REG_SET_RESET, 0x06);            // recommended SET/RESET
+        writeReg(REG_CTRL1, CTRL1_CONT_200HZ);    // continuous, 200Hz, 2G, OSR512
+        return true;
+    }
+
+    /// Read heading in degrees 0–360.  Returns -1 if not ready or read fails.
+    static float readHeading() {
+        // Check data-ready bit before reading
+        if (!(readReg(REG_STATUS) & 0x01)) return -1.0f;
+
+        Wire.beginTransmission(cfg::I2C_ADDR_QMC5883P);
+        Wire.write(REG_DATA);
+        Wire.endTransmission(false);
+        if (Wire.requestFrom(cfg::I2C_ADDR_QMC5883P, (uint8_t)6) != 6) return -1.0f;
+
+        int16_t x = (int16_t)(Wire.read() | (Wire.read() << 8));
+        int16_t y = (int16_t)(Wire.read() | (Wire.read() << 8));
+        // z bytes consumed but unused for 2D heading
+        Wire.read(); Wire.read();
+
+        float heading = atan2f((float)y, (float)x) * 180.0f / (float)M_PI;
+        if (heading < 0.0f) heading += 360.0f;
+        return heading;
+    }
+} // namespace qmc5883p
+
+// ── Heading circular moving average (sin/cos to handle 0°/360° wrap) ─────
+static constexpr int HDG_AVG_N = 20;       // samples in window
+static float hdg_sin_buf[HDG_AVG_N];
+static float hdg_cos_buf[HDG_AVG_N];
+static float hdg_sin_sum = 0.0f;
+static float hdg_cos_sum = 0.0f;
+static int   hdg_idx     = 0;
+static int   hdg_count   = 0;
+
+static float headingSmooth(float deg) {
+    float rad = deg * (float)M_PI / 180.0f;
+    float s   = sinf(rad);
+    float c   = cosf(rad);
+
+    // Subtract the oldest sample being overwritten
+    hdg_sin_sum -= hdg_sin_buf[hdg_idx];
+    hdg_cos_sum -= hdg_cos_buf[hdg_idx];
+
+    // Store & accumulate
+    hdg_sin_buf[hdg_idx] = s;
+    hdg_cos_buf[hdg_idx] = c;
+    hdg_sin_sum += s;
+    hdg_cos_sum += c;
+
+    hdg_idx = (hdg_idx + 1) % HDG_AVG_N;
+    if (hdg_count < HDG_AVG_N) hdg_count++;
+
+    float avg = atan2f(hdg_sin_sum, hdg_cos_sum) * 180.0f / (float)M_PI;
+    if (avg < 0.0f) avg += 360.0f;
+    return avg;
+}
+
 // Module-level instances (hidden from header)
 static Adafruit_BME280  s_bme;
-static QMC5883LCompass  s_compass;
 static Adafruit_MPU6050 s_mpu;
 
 void Sensors::begin() {
@@ -28,10 +120,14 @@ void Sensors::begin() {
         );
     }
 
-    // QMC5883L compass
-    s_compass.init();
-    s_compass.setSmoothing(10, true);
-    data_.compass_ok = true;  // library doesn't provide a status flag
+    // QMC5883P compass
+    Wire.beginTransmission(cfg::I2C_ADDR_QMC5883P);
+    data_.compass_ok = (Wire.endTransmission() == 0) && qmc5883p::init();
+    if (data_.compass_ok) {
+        Serial.println("[sensors] QMC5883P OK at 0x2C");
+    } else {
+        Serial.println("[sensors] QMC5883P not found at 0x2C");
+    }
 
     // MPU6050 (cant / roll)
     data_.mpu_ok = s_mpu.begin(cfg::I2C_ADDR_MPU6050, &Wire);
@@ -53,10 +149,10 @@ void Sensors::update() {
         data_.humidity_pct  = humidity;
     }
 
-    // ── QMC5883L compass ──────────────────────────────────────────────────
+    // ── QMC5883P compass ──────────────────────────────────────────────────
     if (data_.compass_ok) {
-        s_compass.read();
-        data_.heading_deg = static_cast<float>(s_compass.getAzimuth());
+        float h = qmc5883p::readHeading();
+        if (h >= 0.0f) data_.heading_deg = headingSmooth(h);
     }
 
     // ── MPU6050 cant (roll) ───────────────────────────────────────────────

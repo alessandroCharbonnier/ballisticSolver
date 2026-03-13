@@ -7,9 +7,10 @@
 #include "config.h"
 
 // AppState values (avoid circular include with modes.h)
-constexpr uint8_t APP_STATE_MENU  = 0;
-constexpr uint8_t APP_STATE_LIVE  = 1;
-constexpr uint8_t APP_STATE_STAGE = 2;
+constexpr uint8_t APP_STATE_MENU    = 0;
+constexpr uint8_t APP_STATE_LIVE    = 1;
+constexpr uint8_t APP_STATE_STAGE   = 2;
+constexpr uint8_t APP_STATE_SENSORS = 3;
 
 /// Display layout (128×64 monochrome, monospace fonts):
 ///   Y  0–9   : mode header + WiFi icon          (5×8 font)
@@ -38,6 +39,8 @@ public:
     void setCorrection(const ballistic::CorrectionResult& corr,
                        ballistic::CorrectionUnit unit);
     void setSensors(float temp_f, float press_inhg, float humidity_pct);
+    void setHeading(float heading_deg);
+    void setWind(float speed_mph, float angle_deg, bool available);
     void setUnitDistance(uint8_t u);
     void setUnitTemperature(uint8_t u);
     void setUnitPressure(uint8_t u);
@@ -76,6 +79,10 @@ private:
     float    temp_f_       = 59.0f;
     float    press_inhg_   = 29.92f;
     float    humidity_     = 0.0f;
+    float    heading_deg_   = 0.0f;
+    float    wind_speed_mph_= 0.0f;
+    float    wind_angle_deg_= 0.0f;
+    bool     wind_ok_       = false;
     uint8_t  unit_distance_    = 0;
     uint8_t  unit_temperature_ = 0;
     uint8_t  unit_pressure_    = 0;
@@ -85,6 +92,7 @@ private:
     void drawCorrections();
     void drawSensorBar();
     void drawMenu();
+    void drawSensorView();
     void drawCantSlider();
     void drawArrowUp(int x, int y);
     void drawArrowDown(int x, int y);

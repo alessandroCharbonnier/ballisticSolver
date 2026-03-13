@@ -20,6 +20,8 @@ void Display::update() {
     u8g2_.clearBuffer();
     if (app_state_ == APP_STATE_MENU) {
         drawMenu();
+    } else if (app_state_ == APP_STATE_SENSORS) {
+        drawSensorView();
     } else {
         drawCantSlider();
         drawHeader();
@@ -31,7 +33,7 @@ void Display::update() {
 
     // Hardware-invert the display when cant is within the sensitivity
     // threshold — gives the shooter a clear "you're level" signal.
-    bool level = (app_state_ != APP_STATE_MENU) &&
+    bool level = (app_state_ == APP_STATE_LIVE || app_state_ == APP_STATE_STAGE) &&
                  (fabsf(cant_deg_ - cant_offset_) <= cant_sensitivity_);
     if (level != inverted_) {
         inverted_ = level;
@@ -88,6 +90,11 @@ void Display::setCantCalibration(float offset, float sensitivity) {
     cant_sensitivity_ = sensitivity;
 }
 
+void Display::setHeading(float h) { heading_deg_ = h; }
+void Display::setWind(float s, float a, bool ok) {
+    wind_speed_mph_ = s; wind_angle_deg_ = a; wind_ok_ = ok;
+}
+
 void Display::showSleep() {
     u8g2_.clearBuffer();
     u8g2_.setFont(u8g2_font_6x12_mf);
@@ -99,24 +106,69 @@ void Display::showSleep() {
 
 void Display::drawMenu() {
     u8g2_.setFont(u8g2_font_6x12_mf);
-    u8g2_.drawStr(34, 12, "MAIN MENU");
-    u8g2_.drawHLine(0, 15, 128);
 
-    int y = 30;
-    for (uint8_t i = 0; i < 3; ++i) {
+    int y = 14;
+    for (uint8_t i = 0; i < 4; ++i) {
         if (i == menu_cursor_) {
             u8g2_.drawStr(2, y, ">");
         }
         switch (i) {
             case 0: u8g2_.drawStr(14, y, "Live Shooting");  break;
             case 1: u8g2_.drawStr(14, y, "Stage Shooting"); break;
-            case 2:
+            case 2: u8g2_.drawStr(14, y, "Sensors");        break;
+            case 3:
                 u8g2_.drawStr(14, y,
                     wifi_menu_on_ ? "WiFi [ON]" : "WiFi [OFF]");
                 break;
         }
         y += 14;
     }
+}
+
+void Display::drawSensorView() {
+    u8g2_.setFont(u8g2_font_5x8_mf);
+    char buf[26];
+    int y = 8;
+
+    // Temperature
+    float t = temp_f_;
+    const char* ts = "F";
+    if (unit_temperature_ == 1) {
+        t = (temp_f_ - 32.0f) * 5.0f / 9.0f;
+        ts = "C";
+    }
+    snprintf(buf, sizeof(buf), "Temp   %6.1f %s", (double)t, ts);
+    u8g2_.drawStr(0, y, buf); y += 10;
+
+    // Pressure
+    if (unit_pressure_ == 1) {
+        float p = press_inhg_ * 33.8639f;
+        snprintf(buf, sizeof(buf), "Press  %6.0f hPa", (double)p);
+    } else {
+        snprintf(buf, sizeof(buf), "Press  %5.2f inHg", (double)press_inhg_);
+    }
+    u8g2_.drawStr(0, y, buf); y += 10;
+
+    // Humidity
+    snprintf(buf, sizeof(buf), "Humid  %5.1f %%", (double)humidity_);
+    u8g2_.drawStr(0, y, buf); y += 10;
+
+    // Heading
+    snprintf(buf, sizeof(buf), "Head   %5.1f deg", (double)heading_deg_);
+    u8g2_.drawStr(0, y, buf); y += 10;
+
+    // Cant
+    snprintf(buf, sizeof(buf), "Cant   %+5.1f deg", (double)(cant_deg_ - cant_offset_));
+    u8g2_.drawStr(0, y, buf); y += 10;
+
+    // Wind
+    if (wind_ok_) {
+        snprintf(buf, sizeof(buf), "Wind %4.1fmph %3.0f",
+                 (double)wind_speed_mph_, (double)wind_angle_deg_);
+    } else {
+        snprintf(buf, sizeof(buf), "Wind   --  N/A");
+    }
+    u8g2_.drawStr(0, y, buf);
 }
 
 void Display::drawCantSlider() {
@@ -211,7 +263,7 @@ void Display::drawCorrections() {
     }
 
     char buf[20];
-    snprintf(buf, sizeof(buf), "%6.1f %s", (double)v_corr_, unit_label_);
+    snprintf(buf, sizeof(buf), "%6.2f %s", (double)v_corr_, unit_label_);
     u8g2_.drawStr(14, y_v, buf);
 
     // Horizontal correction
@@ -222,7 +274,7 @@ void Display::drawCorrections() {
         drawArrowLeft(2, y_h - 7);
     }
 
-    snprintf(buf, sizeof(buf), "%6.1f %s", (double)h_corr_, unit_label_);
+    snprintf(buf, sizeof(buf), "%6.2f %s", (double)h_corr_, unit_label_);
     u8g2_.drawStr(14, y_h, buf);
 }
 

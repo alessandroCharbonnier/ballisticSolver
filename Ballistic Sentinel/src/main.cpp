@@ -62,6 +62,15 @@ static void updateDisplay() {
     if (g_modes.appState() == AppState::MAIN_MENU) {
         g_display.setMenuCursor(g_modes.menuCursor());
         g_display.setWifiOn(g_modes.wifiOn());
+    } else if (g_modes.appState() == AppState::SENSOR_VIEW) {
+        const auto& sd = g_sensors.data();
+        const auto& wd = g_wind.data();
+        g_display.setSensors(sd.temperature_f, sd.pressure_inhg, sd.humidity_pct);
+        g_display.setHeading(sd.heading_deg);
+        g_display.setCant(sd.cant_deg);
+        g_display.setCantCalibration(g_rifle.cant_offset,
+                                      g_rifle.cant_sensitivity);
+        g_display.setWind(wd.speed_mph, wd.angle_deg, wd.available);
     } else {
         bool staged = (g_modes.appState() == AppState::STAGE_SHOOTING);
         g_display.setMode(staged, g_modes.stageIndex(), g_modes.stageCount());

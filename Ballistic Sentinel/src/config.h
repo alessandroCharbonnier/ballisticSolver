@@ -36,7 +36,7 @@ constexpr uint32_t I2C_FREQ_HZ     = 400000;  // 400 kHz Fast-mode
 // I2C addresses
 constexpr uint8_t I2C_ADDR_OLED    = 0x3C;    // SH1106 default
 constexpr uint8_t I2C_ADDR_BME280  = 0x76;    // SDO → GND
-constexpr uint8_t I2C_ADDR_QMC5883 = 0x0D;    // fixed by chip
+constexpr uint8_t I2C_ADDR_QMC5883P = 0x2C;   // QMC5883P default
 constexpr uint8_t I2C_ADDR_MPU6050 = 0x68;    // AD0 → GND
 
 // ---------------------------------------------------------------------------

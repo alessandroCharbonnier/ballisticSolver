@@ -11,10 +11,11 @@
 enum class AppState : uint8_t {
     MAIN_MENU,
     LIVE_SHOOTING,
-    STAGE_SHOOTING
+    STAGE_SHOOTING,
+    SENSOR_VIEW
 };
 
-constexpr uint8_t MENU_ITEM_COUNT = 3;
+constexpr uint8_t MENU_ITEM_COUNT = 4;
 
 class ModeManager {
 public:
@@ -77,4 +78,5 @@ private:
     void handleMenuButton(ButtonState btn);
     void handleLiveButton(ButtonState btn);
     void handleStageButton(ButtonState btn);
+    void handleSensorButton(ButtonState btn);
 };

@@ -1,6 +1,6 @@
 #pragma once
 /// @file sensors.h
-/// @brief BME280 (temp/pressure/humidity) + QMC5883L (compass heading).
+/// @brief BME280 (temp/pressure/humidity) + QMC5883P (compass heading).
 
 #include <cstdint>
 

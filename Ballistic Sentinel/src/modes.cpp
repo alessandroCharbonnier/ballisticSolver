@@ -75,6 +75,7 @@ void ModeManager::handleButton(ButtonState btn) {
         case AppState::MAIN_MENU:      handleMenuButton(btn);  break;
         case AppState::LIVE_SHOOTING:  handleLiveButton(btn);  break;
         case AppState::STAGE_SHOOTING: handleStageButton(btn); break;
+        case AppState::SENSOR_VIEW:    handleSensorButton(btn); break;
     }
 }
 
@@ -93,7 +94,8 @@ void ModeManager::handleMenuButton(ButtonState btn) {
         switch (menu_cursor_) {
             case 0: app_state_ = AppState::LIVE_SHOOTING;  break;
             case 1: app_state_ = AppState::STAGE_SHOOTING; break;
-            case 2:
+            case 2: app_state_ = AppState::SENSOR_VIEW;    break;
+            case 3:
                 wifi_on_ = !wifi_on_;
                 wifi_toggled_ = true;
                 break;
@@ -147,6 +149,13 @@ void ModeManager::handleStageButton(ButtonState btn) {
     }
 }
 
+void ModeManager::handleSensorButton(ButtonState btn) {
+    // Double-press CENTER → back to menu
+    if (btn.id == ButtonId::CENTER && btn.event == ButtonEvent::DOUBLE_PRESS) {
+        app_state_ = AppState::MAIN_MENU;
+    }
+}
+
 void ModeManager::adjustDigit(int delta) {
     // Decompose distance into digits [thousands, hundreds, tens, ones]
     int d = live_distance_;
@@ -192,11 +201,13 @@ void ModeManager::compute(const SensorData& sensors, const WindData& wind) {
     }
 
     // Coriolis (use compass heading as azimuth)
-    if (std::abs(latitude_deg_) > 0.1f) {
-        calc_.setCoriolis(latitude_deg_, sensors.heading_deg);
-    } else {
-        calc_.disableCoriolis();
-    }
+    // TODO: Re-enable once magnetometer is properly calibrated / shielded
+    // if (std::abs(latitude_deg_) > 0.1f) {
+    //     calc_.setCoriolis(latitude_deg_, sensors.heading_deg);
+    // } else {
+    //     calc_.disableCoriolis();
+    // }
+    calc_.disableCoriolis();
 
     // Find zero (only re-solve when atmosphere changes significantly)
     if (!solved_ || calc_.isDirty()) {
