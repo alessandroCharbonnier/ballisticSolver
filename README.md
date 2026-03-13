@@ -21,7 +21,7 @@ validated to within 0.25% of the Python reference across 8 scenarios and 173 tra
 - **5-way navigation button** — debounced with double-press, long-press (deep sleep), and auto-repeat
 - **WiFi Access Point** — configure rifle/stages via a dark-themed web UI with captive portal
 - **Persistent storage** — NVS for rifle config, stage definitions, and cant calibration
-- **Power management** — auto-dim (2.5 min), motion-based auto deep-sleep (5 min), light sleep between sensor intervals
+- **Power management** — auto-dim after 2 min inactivity (~80% brightness reduction), accelerometer-based auto deep-sleep after 10 min with no motion, ESP32 light sleep between sensor intervals, event-driven ballistic recalculation (on distance change only), BME280 forced mode, compass ODR reduced to 10 Hz, WiFi modem sleep when AP active
 - **Unit preferences** — configurable imperial/metric units for distance, velocity, weight, length, temperature, and pressure
 
 ## Hardware
@@ -238,6 +238,7 @@ Tolerance: max(0.5"/500yd × distance, 0.25% of absolute value)
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0.0 | 2025-01-XX | Initial release — complete C++ ballistic engine, ESP32 firmware, web UI, 37 native tests, 173-point Python comparison |
+| 1.1.0 | 2026-03-13 | Power optimization: event-driven ballistic calc, BME280 forced mode, compass 10 Hz ODR, display 4 fps, split sensor intervals (cant 5 Hz / env 0.5 Hz), ESP32 light sleep, WiFi modem sleep, auto-dim (2 min / 80%), accelerometer-based auto deep-sleep (10 min / 0.43g threshold). Bug fixes: deep-sleep GPIO wakeup loop, wake-from-sleep phantom button press, display inversion persisting on shutdown/wake screens |
 
 ## License
 
