@@ -56,7 +56,7 @@ When guidelines conflict, resolve them in this order:
 
 ## Documentation & Versioning
 
-- **README Updates**: Edit `README.md` whenever significant functionality changes.
+- **README Updates**: Edit the appropriate `README.md` whenever significant functionality changes or new features are added.
 - **Changelog**: Summarize changes in `CHANGELOG.md` using [Keep a Changelog](https://keepachangelog.com/) format.
 - **Versioning**: Follow [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`). Increment the API version when making breaking changes.
 - **API Documentation**: Ensure all endpoints are documented with request/response schemas and example payloads. Code must be compatible with auto-generation tools (e.g., ApiFairy, Swagger/OpenAPI).
