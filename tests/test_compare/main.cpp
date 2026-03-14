@@ -34,11 +34,101 @@ struct Scenario {
     double step_yd;
 };
 
+struct MultiBCScenario {
+    const char* name;
+    const BCPoint* bc_pts;
+    size_t bc_count;
+    DragTableId table;
+    double weight_gr;
+    double diameter_in;
+    double length_in;
+    double mv_fps;
+    double sight_height_in;
+    double twist_in;
+    double zero_yd;
+    double temp_f;
+    double press_inhg;
+    double humidity;
+    double wind_fps;
+    double wind_dir;
+    double max_range_yd;
+    double step_yd;
+};
+
+struct PowderSensScenario {
+    const char* name;
+    double bc;
+    DragTableId table;
+    double weight_gr;
+    double diameter_in;
+    double length_in;
+    double mv_fps;
+    double sight_height_in;
+    double twist_in;
+    double zero_yd;
+    double ref_temp_f;     // baseline powder temperature
+    double fps_per_degf;   // raw sensitivity: fps velocity change per °F
+    double temp_f;
+    double press_inhg;
+    double humidity;
+    double wind_fps;
+    double wind_dir;
+    double max_range_yd;
+    double step_yd;
+};
+
 static void runScenario(const Scenario& s) {
     Calculator calc;
     calc.configure(s.bc, s.table,
                    s.weight_gr, s.diameter_in, s.length_in,
                    s.mv_fps, s.sight_height_in, s.twist_in, s.zero_yd);
+    calc.setAtmosphere(s.temp_f, s.press_inhg, s.humidity);
+    calc.setWind(s.wind_fps, s.wind_dir);
+    if (!calc.solve()) {
+        fprintf(stderr, "WARN: zero failed for %s\n", s.name);
+    }
+
+    auto traj = calc.trajectory(s.max_range_yd, s.step_yd);
+    for (const auto& pt : traj) {
+        double dist_yd = pt.distance_ft / kFeetPerYard;
+        double drop_in = pt.height_ft * kInchesPerFoot;
+        double wind_in = pt.windage_ft * kInchesPerFoot;
+        printf("%s,%.1f,%.4f,%.4f,%.2f,%.4f,%.6f,%.2f\n",
+               s.name, dist_yd, drop_in, wind_in,
+               pt.velocity_fps, pt.mach, pt.time_s, pt.energy_ftlb);
+    }
+}
+
+static void runMultiBCScenario(const MultiBCScenario& s) {
+    Calculator calc;
+    calc.configureMultiBC(s.bc_pts, s.bc_count, s.table,
+                          s.weight_gr, s.diameter_in, s.length_in,
+                          s.mv_fps, s.sight_height_in, s.twist_in, s.zero_yd);
+    calc.setAtmosphere(s.temp_f, s.press_inhg, s.humidity);
+    calc.setWind(s.wind_fps, s.wind_dir);
+    if (!calc.solve()) {
+        fprintf(stderr, "WARN: zero failed for %s\n", s.name);
+    }
+
+    auto traj = calc.trajectory(s.max_range_yd, s.step_yd);
+    for (const auto& pt : traj) {
+        double dist_yd = pt.distance_ft / kFeetPerYard;
+        double drop_in = pt.height_ft * kInchesPerFoot;
+        double wind_in = pt.windage_ft * kInchesPerFoot;
+        printf("%s,%.1f,%.4f,%.4f,%.2f,%.4f,%.6f,%.2f\n",
+               s.name, dist_yd, drop_in, wind_in,
+               pt.velocity_fps, pt.mach, pt.time_s, pt.energy_ftlb);
+    }
+}
+
+static void runPowderSensScenario(const PowderSensScenario& s) {
+    Calculator calc;
+    calc.configure(s.bc, s.table,
+                   s.weight_gr, s.diameter_in, s.length_in,
+                   s.mv_fps, s.sight_height_in, s.twist_in, s.zero_yd);
+    // Derive normalized modifier from raw fps/°F sensitivity
+    double modifier = s.fps_per_degf * 15.0 / s.mv_fps;
+    calc.setPowderSensitivity(s.ref_temp_f, modifier);
     calc.setAtmosphere(s.temp_f, s.press_inhg, s.humidity);
     calc.setWind(s.wind_fps, s.wind_dir);
     if (!calc.solve()) {
@@ -933,6 +1023,128 @@ int main() {
         59.0, 29.92, 0.0,
         29.33, 90.0,
         1200.0, 50.0
+    });
+
+    // ════════════════════════════════════════════════════════════════════
+    // MULTI-BC SCENARIOS — velocity-stepped ballistic coefficients
+    // ════════════════════════════════════════════════════════════════════
+
+    // 6.5 CM Berger 140gr Hybrid Target — 3 velocity-stepped BCs (G7)
+    {
+        BCPoint pts[] = {{0.315, 2700.0}, {0.310, 2200.0}, {0.290, 1800.0}};
+        runMultiBCScenario({
+            "mbc_65cm_b140", pts, 3, DragTableId::G7,
+            140.0, 0.264, 1.35, 2710.0, 1.5, 8.0, 100.0,
+            59.0, 29.92, 0.0, 0.0, 0.0, 1200.0, 50.0
+        });
+    }
+
+    // 6.5 CM Hornady 147 ELD-M — multi-BC with PRS crosswind
+    {
+        BCPoint pts[] = {{0.351, 2700.0}, {0.345, 2200.0}, {0.330, 1800.0}};
+        runMultiBCScenario({
+            "mbc_65cm_147_w10", pts, 3, DragTableId::G7,
+            147.0, 0.264, 1.42, 2695.0, 1.5, 8.0, 100.0,
+            59.0, 29.92, 0.0, 14.667, 90.0, 1200.0, 50.0
+        });
+    }
+
+    // .338 LM Berger 300gr Hybrid OTM — 3 BC points (G7)
+    {
+        BCPoint pts[] = {{0.419, 2750.0}, {0.410, 2200.0}, {0.395, 1700.0}};
+        runMultiBCScenario({
+            "mbc_338lm_b300", pts, 3, DragTableId::G7,
+            300.0, 0.338, 1.70, 2750.0, 1.5, 9.375, 100.0,
+            59.0, 29.92, 0.0, 0.0, 0.0, 1760.0, 100.0
+        });
+    }
+
+    // .300 PRC Berger 230gr Hybrid Target — multi-BC at altitude (G7)
+    {
+        BCPoint pts[] = {{0.368, 2800.0}, {0.360, 2300.0}, {0.340, 1800.0}};
+        runMultiBCScenario({
+            "mbc_300prc_b230", pts, 3, DragTableId::G7,
+            230.0, 0.308, 1.60, 2825.0, 1.5, 8.0, 100.0,
+            70.0, 24.90, 0.30, 0.0, 0.0, 1760.0, 100.0
+        });
+    }
+
+    // 6mm CM Hornady 110gr A-Tip — multi-BC (G7)
+    {
+        BCPoint pts[] = {{0.301, 3000.0}, {0.295, 2500.0}, {0.280, 2000.0}};
+        runMultiBCScenario({
+            "mbc_6cm_atip110", pts, 3, DragTableId::G7,
+            110.0, 0.243, 1.38, 3020.0, 1.5, 7.5, 100.0,
+            59.0, 29.92, 0.0, 0.0, 0.0, 1200.0, 50.0
+        });
+    }
+
+    // .308 Win Berger 185gr Juggernaut — multi-BC with wind (G7)
+    {
+        BCPoint pts[] = {{0.283, 2600.0}, {0.275, 2100.0}, {0.260, 1600.0}};
+        runMultiBCScenario({
+            "mbc_308_b185_w10", pts, 3, DragTableId::G7,
+            185.0, 0.308, 1.32, 2570.0, 1.5, 10.0, 100.0,
+            59.0, 29.92, 0.0, 14.667, 90.0, 1200.0, 50.0
+        });
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // POWDER SENSITIVITY SCENARIOS — MV adjusted for temperature
+    // ════════════════════════════════════════════════════════════════════
+
+    // 6.5 CM 140 ELD-M — cold day (20°F), ref 59°F, ~1.5 fps/°F
+    runPowderSensScenario({
+        "ps_65cm_140_cold",
+        0.315, DragTableId::G7,
+        140.0, 0.264, 1.35, 2710.0, 1.5, 8.0, 100.0,
+        59.0, 1.5,
+        20.0, 30.10, 0.20, 0.0, 0.0, 1200.0, 50.0
+    });
+
+    // 6.5 CM 140 ELD-M — hot day (110°F), same sensitivity
+    runPowderSensScenario({
+        "ps_65cm_140_hot",
+        0.315, DragTableId::G7,
+        140.0, 0.264, 1.35, 2710.0, 1.5, 8.0, 100.0,
+        59.0, 1.5,
+        110.0, 29.80, 0.10, 0.0, 0.0, 1200.0, 50.0
+    });
+
+    // .308 Win 175 SMK — extreme cold (0°F), ~1.0 fps/°F
+    runPowderSensScenario({
+        "ps_308_175_cold",
+        0.243, DragTableId::G7,
+        175.0, 0.308, 1.24, 2600.0, 1.5, 10.0, 100.0,
+        59.0, 1.0,
+        0.0, 30.50, 0.10, 0.0, 0.0, 1200.0, 50.0
+    });
+
+    // .338 LM 300gr — hot desert (115°F), ~1.8 fps/°F
+    runPowderSensScenario({
+        "ps_338lm_300_hot",
+        0.417, DragTableId::G7,
+        300.0, 0.338, 1.70, 2750.0, 1.5, 9.375, 100.0,
+        59.0, 1.8,
+        115.0, 29.70, 0.10, 0.0, 0.0, 1760.0, 100.0
+    });
+
+    // 6.5 CM 147 ELD-M — cold (15°F) with crosswind, ~1.5 fps/°F
+    runPowderSensScenario({
+        "ps_65cm_147_cold_w10",
+        0.351, DragTableId::G7,
+        147.0, 0.264, 1.42, 2695.0, 1.5, 8.0, 100.0,
+        59.0, 1.5,
+        15.0, 30.30, 0.15, 14.667, 90.0, 1200.0, 50.0
+    });
+
+    // .300 PRC 230gr — cold high-altitude match (25°F, ~5000ft), ~1.2 fps/°F
+    runPowderSensScenario({
+        "ps_300prc_230_cold_alt",
+        0.391, DragTableId::G7,
+        230.0, 0.308, 1.60, 2800.0, 1.5, 8.0, 100.0,
+        59.0, 1.2,
+        25.0, 24.90, 0.20, 0.0, 0.0, 1760.0, 100.0
     });
 
     return 0;

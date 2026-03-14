@@ -8,7 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- **75 comparison test scenarios** (up from 8) across `.22 LR`, `6.5 CM`, `6mm CM`, `.308 Win`, `.338 LM`, `.300 PRC`, `.375 CheyTac`, `.50 BMG`
+- **87 comparison test scenarios** (up from 75) with 1850 trajectory points
+- **6 multi-BC scenarios** — velocity-stepped ballistic coefficients validated across C++ and Python:
+  6.5 CM Berger 140 HT, 6.5 CM 147 ELD-M (with wind), .338 LM Berger 300, .300 PRC Berger 230 (altitude),
+  6mm CM A-Tip 110, .308 Win Berger 185 (with wind)
+- **6 powder sensitivity scenarios** — MV-adjusted-for-temperature validated across C++ and Python:
+  6.5 CM 140 ELD-M (cold 20°F + hot 110°F), .308 175 SMK (extreme cold 0°F), .338 LM 300gr (hot desert 115°F),
+  6.5 CM 147 ELD-M (cold 15°F + crosswind), .300 PRC 230gr (cold high-altitude 25°F)
+- `MultiBCScenario` dataclass and `compute_multi_bc_trajectory()` in Python test suite
+- `PowderSensScenario` dataclass and `compute_powder_sens_trajectory()` in Python test suite
+- `MultiBCScenario` / `PowderSensScenario` structs and `runMultiBCScenario()` / `runPowderSensScenario()` in C++ test suite
 - `.22 LR competition bullet profiles`: SK Rifle Match, SK Long Range, Eley Tenex, Eley ELR (Contact), Lapua Center-X, Lapua Midas+, Lapua Long Range, Lapua Super Long Range, Lapua X-Act, RWS R50, CCI Standard Velocity, Federal Gold Medal Target
 - Centerfire competition bullets per caliber: Berger Hybrid Target, Sierra MatchKing, Hornady ELD-M / A-Tip, Cutting Edge MTAC, and others
 - Handloaded profiles for 6.5 CM (Berger 153.5 LRHT, 140 ELD-M hot, 147 ELD-M pushed), 6mm CM (Berger 115 DTAC), .308 Win (Berger 200 HT), .338 LM (Berger 300 OTM hot), .375 CT (350gr pushed), .300 PRC (Berger 230 HT)
