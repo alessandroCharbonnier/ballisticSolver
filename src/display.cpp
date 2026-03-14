@@ -9,6 +9,18 @@
 // Large  : u8g2_font_7x14_mf      – 7×14  (corrections)
 // ────────────────────────────────────────────────────────────────────────────
 
+// WiFi icon 11×8 px (XBM, PROGMEM)
+static const uint8_t wifi_icon[] PROGMEM = {
+    0xFC, 0x01,  // ..#######..
+    0xFE, 0x03,  // .#########.
+    0x03, 0x06,  // ##.......##
+    0xF9, 0x04,  // #..#####..#
+    0xF8, 0x00,  // ...#####...
+    0x70, 0x00,  // ....###....
+    0x00, 0x00,  // ...........
+    0x20, 0x00   // .....#.....
+};
+
 void Display::begin() {
     u8g2_.begin();
     u8g2_.setFontMode(1);            // transparent background
@@ -182,8 +194,8 @@ void Display::drawMenu() {
         switch (idx) {
             case 0: u8g2_.drawStr(14, y, "Live Shooting");  break;
             case 1: u8g2_.drawStr(14, y, "Stage Shooting"); break;
-            case 2: u8g2_.drawStr(14, y, "Sensors");        break;
-            case 3: u8g2_.drawStr(14, y, "Digital Level");   break;
+            case 2: u8g2_.drawStr(14, y, "Digital Level");   break;
+            case 3: u8g2_.drawStr(14, y, "Sensors");        break;
             case 4:
                 u8g2_.drawStr(14, y,
                     wifi_menu_on_ ? "WiFi [ON]" : "WiFi [OFF]");
@@ -354,9 +366,9 @@ void Display::drawHeader() {
         }
     }
 
-    // WiFi indicator (shifted left to make room for battery)
+    // WiFi indicator icon (left of battery, no overlap with cant slider)
     if (wifi_active_) {
-        u8g2_.drawStr(90, 8, "WiFi");
+        u8g2_.drawXBMP(103, 0, 11, 8, wifi_icon);
     }
 }
 

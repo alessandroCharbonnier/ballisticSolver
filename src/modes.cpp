@@ -97,8 +97,8 @@ void ModeManager::handleMenuButton(ButtonState btn) {
         switch (menu_cursor_) {
             case 0: app_state_ = AppState::LIVE_SHOOTING;  break;
             case 1: app_state_ = AppState::STAGE_SHOOTING; break;
-            case 2: app_state_ = AppState::SENSOR_VIEW;    break;
-            case 3: app_state_ = AppState::DIGITAL_LEVEL;  break;
+            case 2: app_state_ = AppState::DIGITAL_LEVEL;  break;
+            case 3: app_state_ = AppState::SENSOR_VIEW;    break;
             case 4:
                 wifi_on_ = !wifi_on_;
                 wifi_toggled_ = true;
