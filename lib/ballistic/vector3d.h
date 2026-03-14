@@ -36,6 +36,16 @@ struct Vector3 {
     /// Euclidean magnitude.
     double magnitude() const { return std::sqrt(x * x + y * y + z * z); }
 
+    /// Euclidean magnitude using hardware float sqrt + Newton refinement.
+    /// ~14 digits of precision — sufficient for ballistic integration.
+    double fastMagnitude() const {
+        double sq = x * x + y * y + z * z;
+        if (sq <= 0.0) return 0.0;
+        float approx = sqrtf(static_cast<float>(sq));
+        double d = static_cast<double>(approx);
+        return 0.5 * (d + sq / d);  // one Newton-Raphson step
+    }
+
     /// Squared magnitude (avoids sqrt for comparisons).
     constexpr double magnitudeSquared() const { return x * x + y * y + z * z; }
 

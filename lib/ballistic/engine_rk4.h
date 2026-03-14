@@ -153,10 +153,30 @@ struct ShotConfig {
 
 class EngineRK4 {
 public:
-    static constexpr double kDefaultDt     = 0.0025;   // seconds
+    // --- Adaptive RK45 Dormand-Prince step size control ---
+    static constexpr double kDefaultDt     = 0.005;    // initial step (seconds)
+    static constexpr double kMinDt         = 0.0005;   // minimum step size
+    static constexpr double kMaxDt         = 0.02;     // maximum step size
+    static constexpr double kRK45Tol       = 1e-6;     // local truncation error tolerance (feet)
+    static constexpr double kSafetyFactor  = 0.84;     // step growth safety factor
     static constexpr int    kMaxZeroIter   = 40;
     static constexpr double kZeroAccFt     = 0.000005;
     static constexpr double kMinVelocitySq = kMinVelocity * kMinVelocity;
+
+    // --- Atmosphere amortization ---
+    static constexpr int    kAtmoSkipSteps = 8;        // recalculate atmosphere every N steps
+
+    // --- Dormand-Prince RK45 coefficients ---
+    // Butcher tableau constants (static constexpr for zero runtime cost)
+    static constexpr double a21 = 1.0/5.0;
+    static constexpr double a31 = 3.0/40.0,     a32 = 9.0/40.0;
+    static constexpr double a41 = 44.0/45.0,    a42 = -56.0/15.0,  a43 = 32.0/9.0;
+    static constexpr double a51 = 19372.0/6561.0, a52 = -25360.0/2187.0, a53 = 64448.0/6561.0, a54 = -212.0/729.0;
+    static constexpr double a61 = 9017.0/3168.0, a62 = -355.0/33.0, a63 = 46732.0/5247.0, a64 = 49.0/176.0, a65 = -5103.0/18656.0;
+    // 5th-order weights
+    static constexpr double b1 = 35.0/384.0, b3 = 500.0/1113.0, b4 = 125.0/192.0, b5 = -2187.0/6784.0, b6 = 11.0/84.0;
+    // 4th-order weights (for error estimate)
+    static constexpr double e1 = 71.0/57600.0, e3 = -71.0/16695.0, e4 = 71.0/1920.0, e5 = -17253.0/339200.0, e6 = 22.0/525.0, e7 = -1.0/40.0;
 
     /// Find the zero elevation (barrel angle that zeros at zero_distance).
     /// Modifies shot.zero_elevation in-place.
@@ -299,24 +319,38 @@ public:
             ? kDragConvFactor / shot.drag.bc : 0.0;
         size_t spline_hint = shot.drag.spline.n / 2;
 
+        // Atmosphere amortization state
+        double density_ratio, mach_local, inv_mach;
+        atmo_pre.atAltitude(shot.atmo.altitude_ft + pos.y,
+                            density_ratio, mach_local);
+        inv_mach = 1.0 / mach_local;
+        int atmo_counter = 0;
+
         // Record initial point
         recordPoint(points, shot, pos, vel, time, wind_vec);
 
         while (pos.x < max_distance_ft) {
-            // Atmospheric conditions at current altitude
-            double density_ratio, mach_local;
-            atmo_pre.atAltitude(shot.atmo.altitude_ft + pos.y,
-                                density_ratio, mach_local);
+            // Refresh atmosphere periodically
+            if (atmo_counter <= 0) {
+                atmo_pre.atAltitude(shot.atmo.altitude_ft + pos.y,
+                                    density_ratio, mach_local);
+                inv_mach = 1.0 / mach_local;
+                atmo_counter = kAtmoSkipSteps;
+            }
+            --atmo_counter;
 
-            // --- RK4 step ---
+            double dr = density_ratio;
+            double im = inv_mach;
+
+            // --- RK45 Dormand-Prince step ---
             auto accel = [&](const Vector3& p, const Vector3& v) -> Vector3 {
                 Vector3 v_rel = v - wind_vec;
-                double  speed = v_rel.magnitude();
+                double  speed = v_rel.fastMagnitude();
 
                 Vector3 a = {0.0, kGravityFps2, 0.0};  // gravity
                 if (speed > 0.0) {
-                    double mach = speed / mach_local;
-                    double drag = density_ratio
+                    double mach = speed * im;
+                    double drag = dr
                         * shot.drag.spline.evalHinted(mach, spline_hint)
                         * drag_coeff;
                     a -= v_rel * (drag * speed);  // drag deceleration
@@ -326,21 +360,42 @@ public:
                 return a;
             };
 
-            Vector3 k1v = accel(pos, vel);
-            Vector3 k1p = vel;
+            Vector3 k1 = accel(pos, vel);
+            Vector3 k2 = accel(pos, vel + k1 * (dt * a21));
+            Vector3 k3 = accel(pos, vel + k1 * (dt * a31) + k2 * (dt * a32));
+            Vector3 k4 = accel(pos, vel + k1 * (dt * a41) + k2 * (dt * a42) + k3 * (dt * a43));
+            Vector3 k5 = accel(pos, vel + k1 * (dt * a51) + k2 * (dt * a52) + k3 * (dt * a53) + k4 * (dt * a54));
+            Vector3 k6 = accel(pos, vel + k1 * (dt * a61) + k2 * (dt * a62) + k3 * (dt * a63) + k4 * (dt * a64) + k5 * (dt * a65));
 
-            Vector3 k2v = accel(pos + k1p * (dt * 0.5), vel + k1v * (dt * 0.5));
-            Vector3 k2p = vel + k1v * (dt * 0.5);
+            Vector3 vel_new = vel + (k1 * b1 + k3 * b3 + k4 * b4 + k5 * b5 + k6 * b6) * dt;
 
-            Vector3 k3v = accel(pos + k2p * (dt * 0.5), vel + k2v * (dt * 0.5));
-            Vector3 k3p = vel + k2v * (dt * 0.5);
+            // Error estimate
+            Vector3 k7 = accel(pos, vel_new);
+            Vector3 err_vec = (k1 * e1 + k3 * e3 + k4 * e4 + k5 * e5 + k6 * e6 + k7 * e7) * dt;
+            double err = err_vec.fastMagnitude();
 
-            Vector3 k4v = accel(pos + k3p * dt, vel + k3v * dt);
-            Vector3 k4p = vel + k3v * dt;
+            if (err > kRK45Tol && dt > kMinDt) {
+                double scale = kSafetyFactor * std::pow(kRK45Tol / err, 0.25);
+                dt *= (scale > 0.2) ? scale : 0.2;
+                if (dt < kMinDt) dt = kMinDt;
+                continue;
+            }
 
-            vel += (k1v + k2v * 2.0 + k3v * 2.0 + k4v) * (dt / 6.0);
-            pos += (k1p + k2p * 2.0 + k3p * 2.0 + k4p) * (dt / 6.0);
+            // Accept step
+            pos += (vel + vel_new) * (dt * 0.5);
+            vel = vel_new;
             time += dt;
+
+            // Adapt step size
+            if (err > 0.0) {
+                double scale = kSafetyFactor * std::pow(kRK45Tol / err, 0.2);
+                if (scale > 4.0) scale = 4.0;
+                dt *= scale;
+            } else {
+                dt *= 2.0;
+            }
+            if (dt > kMaxDt) dt = kMaxDt;
+            if (dt < kMinDt) dt = kMinDt;
 
             // Record point at each distance step
             if (pos.x >= next_step) {
@@ -359,7 +414,7 @@ public:
 
 private:
     /// Integrate trajectory to a specific distance, return height at that point.
-    /// Used by zero finder.
+    /// Used by zero finder.  Uses adaptive RK45 Dormand-Prince.
     double traceToDistance(const ShotConfig& shot, double target_dist_ft) const {
         double mv = shot.effectiveMuzzleVel();
         double barrel_elev = shot.look_angle_rad + shot.zero_elevation;
@@ -380,18 +435,33 @@ private:
             ? kDragConvFactor / shot.drag.bc : 0.0;
         size_t spline_hint = shot.drag.spline.n / 2;
 
+        // Atmosphere amortization state
+        double density_ratio, mach_local, inv_mach;
+        atmo_pre.atAltitude(shot.atmo.altitude_ft + pos.y,
+                            density_ratio, mach_local);
+        inv_mach = 1.0 / mach_local;
+        int atmo_counter = 0;
+
         while (pos.x < target_dist_ft) {
-            double density_ratio, mach_local;
-            atmo_pre.atAltitude(shot.atmo.altitude_ft + pos.y,
-                                density_ratio, mach_local);
+            // Refresh atmosphere periodically
+            if (atmo_counter <= 0) {
+                atmo_pre.atAltitude(shot.atmo.altitude_ft + pos.y,
+                                    density_ratio, mach_local);
+                inv_mach = 1.0 / mach_local;
+                atmo_counter = kAtmoSkipSteps;
+            }
+            --atmo_counter;
+
+            double dr = density_ratio;  // local copy for lambda capture
+            double im = inv_mach;
 
             auto dragAccel = [&](const Vector3& v) -> Vector3 {
                 Vector3 vr = v - wind_vec;
-                double  sp = vr.magnitude();
+                double  sp = vr.fastMagnitude();
                 Vector3 a = {0.0, kGravityFps2, 0.0};
                 if (sp > 0.0) {
-                    double m = sp / mach_local;
-                    double d = density_ratio
+                    double m = sp * im;
+                    double d = dr
                         * shot.drag.spline.evalHinted(m, spline_hint)
                         * drag_coeff;
                     a -= vr * (d * sp);
@@ -400,28 +470,54 @@ private:
                 return a;
             };
 
-            Vector3 k1v = dragAccel(vel);
-            Vector3 k1p = vel;
-            Vector3 k2v = dragAccel(vel + k1v * (dt * 0.5));
-            Vector3 k2p = vel + k1v * (dt * 0.5);
-            Vector3 k3v = dragAccel(vel + k2v * (dt * 0.5));
-            Vector3 k3p = vel + k2v * (dt * 0.5);
-            Vector3 k4v = dragAccel(vel + k3v * dt);
-            Vector3 k4p = vel + k3v * dt;
+            // --- RK45 Dormand-Prince step ---
+            Vector3 k1 = dragAccel(vel);
+            Vector3 k2 = dragAccel(vel + k1 * (dt * a21));
+            Vector3 k3 = dragAccel(vel + k1 * (dt * a31) + k2 * (dt * a32));
+            Vector3 k4 = dragAccel(vel + k1 * (dt * a41) + k2 * (dt * a42) + k3 * (dt * a43));
+            Vector3 k5 = dragAccel(vel + k1 * (dt * a51) + k2 * (dt * a52) + k3 * (dt * a53) + k4 * (dt * a54));
+            Vector3 k6 = dragAccel(vel + k1 * (dt * a61) + k2 * (dt * a62) + k3 * (dt * a63) + k4 * (dt * a64) + k5 * (dt * a65));
 
-            vel += (k1v + k2v * 2.0 + k3v * 2.0 + k4v) * (dt / 6.0);
-            pos += (k1p + k2p * 2.0 + k3p * 2.0 + k4p) * (dt / 6.0);
+            // 5th-order solution
+            Vector3 vel_new = vel + (k1 * b1 + k3 * b3 + k4 * b4 + k5 * b5 + k6 * b6) * dt;
+
+            // Error estimate (difference between 4th and 5th order)
+            Vector3 k7 = dragAccel(vel_new);
+            Vector3 err_vec = (k1 * e1 + k3 * e3 + k4 * e4 + k5 * e5 + k6 * e6 + k7 * e7) * dt;
+            double err = err_vec.fastMagnitude();
+
+            if (err > kRK45Tol && dt > kMinDt) {
+                // Reject step, shrink dt
+                double scale = kSafetyFactor * std::pow(kRK45Tol / err, 0.25);
+                dt *= (scale > 0.2) ? scale : 0.2;
+                if (dt < kMinDt) dt = kMinDt;
+                continue;  // retry with smaller step
+            }
+
+            // Accept step — trapezoidal position update (must use vel before overwrite)
+            pos += (vel + vel_new) * (dt * 0.5);
+            vel = vel_new;
+
+            // Adapt step size for next iteration
+            if (err > 0.0) {
+                double scale = kSafetyFactor * std::pow(kRK45Tol / err, 0.2);
+                if (scale > 4.0) scale = 4.0;
+                dt *= scale;
+            } else {
+                dt *= 2.0;
+            }
+            if (dt > kMaxDt) dt = kMaxDt;
+            if (dt < kMinDt) dt = kMinDt;
 
             if (vel.magnitudeSquared() < kMinVelocitySq) break;
             if (pos.y < kMaxDrop) break;
         }
 
-        // Linear interpolation to exact distance
-        // (pos is likely past target by a fraction of a step)
         return pos.y;
     }
 
     /// Integrate to target distance and return the full trajectory point.
+    /// Uses adaptive RK45 Dormand-Prince with atmosphere amortization.
     TrajectoryPoint traceToPoint(const ShotConfig& shot,
                                  double target_dist_ft) const
     {
@@ -452,6 +548,13 @@ private:
         size_t spline_hint = shot.drag.spline.n / 2;
         double sg = shot.stabilityCoefficient();
 
+        // Atmosphere amortization state
+        double density_ratio, mach_local, inv_mach;
+        atmo_pre.atAltitude(shot.atmo.altitude_ft + pos.y,
+                            density_ratio, mach_local);
+        inv_mach = 1.0 / mach_local;
+        int atmo_counter = 0;
+
         // Store previous step for interpolation
         Vector3 prev_pos = pos;
         Vector3 prev_vel = vel;
@@ -462,17 +565,25 @@ private:
             prev_vel  = vel;
             prev_time = time;
 
-            double density_ratio, mach_local;
-            atmo_pre.atAltitude(shot.atmo.altitude_ft + pos.y,
-                                density_ratio, mach_local);
+            // Refresh atmosphere periodically
+            if (atmo_counter <= 0) {
+                atmo_pre.atAltitude(shot.atmo.altitude_ft + pos.y,
+                                    density_ratio, mach_local);
+                inv_mach = 1.0 / mach_local;
+                atmo_counter = kAtmoSkipSteps;
+            }
+            --atmo_counter;
+
+            double dr = density_ratio;
+            double im = inv_mach;
 
             auto accel = [&](const Vector3& v) -> Vector3 {
                 Vector3 v_rel = v - wind_vec;
-                double  speed = v_rel.magnitude();
+                double  speed = v_rel.fastMagnitude();
                 Vector3 a = {0.0, kGravityFps2, 0.0};
                 if (speed > 0.0) {
-                    double mach = speed / mach_local;
-                    double drag = density_ratio
+                    double mach = speed * im;
+                    double drag = dr
                         * shot.drag.spline.evalHinted(mach, spline_hint)
                         * drag_coeff;
                     a -= v_rel * (drag * speed);
@@ -481,18 +592,44 @@ private:
                 return a;
             };
 
-            Vector3 k1v = accel(vel);
-            Vector3 k1p = vel;
-            Vector3 k2v = accel(vel + k1v * (dt * 0.5));
-            Vector3 k2p = vel + k1v * (dt * 0.5);
-            Vector3 k3v = accel(vel + k2v * (dt * 0.5));
-            Vector3 k3p = vel + k2v * (dt * 0.5);
-            Vector3 k4v = accel(vel + k3v * dt);
-            Vector3 k4p = vel + k3v * dt;
+            // --- RK45 Dormand-Prince step ---
+            Vector3 k1 = accel(vel);
+            Vector3 k2 = accel(vel + k1 * (dt * a21));
+            Vector3 k3 = accel(vel + k1 * (dt * a31) + k2 * (dt * a32));
+            Vector3 k4 = accel(vel + k1 * (dt * a41) + k2 * (dt * a42) + k3 * (dt * a43));
+            Vector3 k5 = accel(vel + k1 * (dt * a51) + k2 * (dt * a52) + k3 * (dt * a53) + k4 * (dt * a54));
+            Vector3 k6 = accel(vel + k1 * (dt * a61) + k2 * (dt * a62) + k3 * (dt * a63) + k4 * (dt * a64) + k5 * (dt * a65));
 
-            vel += (k1v + k2v * 2.0 + k3v * 2.0 + k4v) * (dt / 6.0);
-            pos += (k1p + k2p * 2.0 + k3p * 2.0 + k4p) * (dt / 6.0);
+            // 5th-order velocity
+            Vector3 vel_new = vel + (k1 * b1 + k3 * b3 + k4 * b4 + k5 * b5 + k6 * b6) * dt;
+
+            // Error estimate
+            Vector3 k7 = accel(vel_new);
+            Vector3 err_vec = (k1 * e1 + k3 * e3 + k4 * e4 + k5 * e5 + k6 * e6 + k7 * e7) * dt;
+            double err = err_vec.fastMagnitude();
+
+            if (err > kRK45Tol && dt > kMinDt) {
+                double scale = kSafetyFactor * std::pow(kRK45Tol / err, 0.25);
+                dt *= (scale > 0.2) ? scale : 0.2;
+                if (dt < kMinDt) dt = kMinDt;
+                continue;
+            }
+
+            // Accept step — trapezoidal position update
+            pos += (vel + vel_new) * (dt * 0.5);
+            vel = vel_new;
             time += dt;
+
+            // Adapt step size
+            if (err > 0.0) {
+                double scale = kSafetyFactor * std::pow(kRK45Tol / err, 0.2);
+                if (scale > 4.0) scale = 4.0;
+                dt *= scale;
+            } else {
+                dt *= 2.0;
+            }
+            if (dt > kMaxDt) dt = kMaxDt;
+            if (dt < kMinDt) dt = kMinDt;
 
             if (vel.magnitudeSquared() < kMinVelocitySq) break;
             if (pos.y < kMaxDrop) break;
