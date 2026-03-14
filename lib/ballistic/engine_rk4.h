@@ -137,6 +137,14 @@ struct ShotConfig {
         // 1.25 * (Sg + 1.2) * t^1.83  gives inches → convert to feet
         return sign * (1.25 * (sg + 1.2) * std::pow(time_s, 1.83)) / 12.0;
     }
+
+    /// Spin drift with pre-computed stability coefficient (avoids
+    /// redundant pow()/sqrt() calls when used in integration loops).
+    double spinDrift(double time_s, double sg) const {
+        if (twist_in == 0.0) return 0.0;
+        double sign = (twist_in > 0.0) ? 1.0 : -1.0;
+        return sign * (1.25 * (sg + 1.2) * std::pow(time_s, 1.83)) / 12.0;
+    }
 };
 
 // ===========================================================================
@@ -145,9 +153,10 @@ struct ShotConfig {
 
 class EngineRK4 {
 public:
-    static constexpr double kDefaultDt   = 0.0025;   // seconds
-    static constexpr int    kMaxZeroIter = 40;
-    static constexpr double kZeroAccFt   = 0.000005;
+    static constexpr double kDefaultDt     = 0.0025;   // seconds
+    static constexpr int    kMaxZeroIter   = 40;
+    static constexpr double kZeroAccFt     = 0.000005;
+    static constexpr double kMinVelocitySq = kMinVelocity * kMinVelocity;
 
     /// Find the zero elevation (barrel angle that zeros at zero_distance).
     /// Modifies shot.zero_elevation in-place.
@@ -284,24 +293,32 @@ public:
         double  time = 0.0;
         double  dt = kDefaultDt;
 
+        // Pre-compute for performance
+        AtmoPrecomp atmo_pre(shot.atmo);
+        double drag_coeff = (shot.drag.bc > 0.0)
+            ? kDragConvFactor / shot.drag.bc : 0.0;
+        size_t spline_hint = shot.drag.spline.n / 2;
+
         // Record initial point
         recordPoint(points, shot, pos, vel, time, wind_vec);
 
         while (pos.x < max_distance_ft) {
             // Atmospheric conditions at current altitude
             double density_ratio, mach_local;
-            shot.atmo.atAltitude(shot.atmo.altitude_ft + pos.y,
-                                 density_ratio, mach_local);
+            atmo_pre.atAltitude(shot.atmo.altitude_ft + pos.y,
+                                density_ratio, mach_local);
 
             // --- RK4 step ---
             auto accel = [&](const Vector3& p, const Vector3& v) -> Vector3 {
                 Vector3 v_rel = v - wind_vec;
                 double  speed = v_rel.magnitude();
-                double  mach  = speed / mach_local;
-                double  drag  = density_ratio * shot.drag.dragByMach(mach);
 
                 Vector3 a = {0.0, kGravityFps2, 0.0};  // gravity
                 if (speed > 0.0) {
+                    double mach = speed / mach_local;
+                    double drag = density_ratio
+                        * shot.drag.spline.evalHinted(mach, spline_hint)
+                        * drag_coeff;
                     a -= v_rel * (drag * speed);  // drag deceleration
                 }
                 a += shot.coriolis.acceleration(v);  // Coriolis
@@ -332,7 +349,7 @@ public:
             }
 
             // Termination conditions
-            if (vel.magnitude() < kMinVelocity) break;
+            if (vel.magnitudeSquared() < kMinVelocitySq) break;
             if (pos.y < kMaxDrop) break;
             if (pos.y < kMinAltitude) break;
         }
@@ -357,24 +374,26 @@ private:
         Vector3 wind_vec = shot.wind.vector();
         double  dt = kDefaultDt;
 
+        // Pre-compute for performance
+        AtmoPrecomp atmo_pre(shot.atmo);
+        double drag_coeff = (shot.drag.bc > 0.0)
+            ? kDragConvFactor / shot.drag.bc : 0.0;
+        size_t spline_hint = shot.drag.spline.n / 2;
+
         while (pos.x < target_dist_ft) {
             double density_ratio, mach_local;
-            shot.atmo.atAltitude(shot.atmo.altitude_ft + pos.y,
-                                 density_ratio, mach_local);
+            atmo_pre.atAltitude(shot.atmo.altitude_ft + pos.y,
+                                density_ratio, mach_local);
 
-            Vector3 v_rel = vel - wind_vec;
-            double  speed = v_rel.magnitude();
-            double  mach  = speed / mach_local;
-            double  drag  = density_ratio * shot.drag.dragByMach(mach);
-
-            // RK4 for velocity (includes Coriolis to match Python zero-finder)
             auto dragAccel = [&](const Vector3& v) -> Vector3 {
                 Vector3 vr = v - wind_vec;
                 double  sp = vr.magnitude();
                 Vector3 a = {0.0, kGravityFps2, 0.0};
                 if (sp > 0.0) {
                     double m = sp / mach_local;
-                    double d = density_ratio * shot.drag.dragByMach(m);
+                    double d = density_ratio
+                        * shot.drag.spline.evalHinted(m, spline_hint)
+                        * drag_coeff;
                     a -= vr * (d * sp);
                 }
                 a += shot.coriolis.acceleration(v);
@@ -393,7 +412,7 @@ private:
             vel += (k1v + k2v * 2.0 + k3v * 2.0 + k4v) * (dt / 6.0);
             pos += (k1p + k2p * 2.0 + k3p * 2.0 + k4p) * (dt / 6.0);
 
-            if (vel.magnitude() < kMinVelocity) break;
+            if (vel.magnitudeSquared() < kMinVelocitySq) break;
             if (pos.y < kMaxDrop) break;
         }
 
@@ -426,6 +445,13 @@ private:
         double  dt = kDefaultDt;
         double  time = 0.0;
 
+        // Pre-compute for performance
+        AtmoPrecomp atmo_pre(shot.atmo);
+        double drag_coeff = (shot.drag.bc > 0.0)
+            ? kDragConvFactor / shot.drag.bc : 0.0;
+        size_t spline_hint = shot.drag.spline.n / 2;
+        double sg = shot.stabilityCoefficient();
+
         // Store previous step for interpolation
         Vector3 prev_pos = pos;
         Vector3 prev_vel = vel;
@@ -437,8 +463,8 @@ private:
             prev_time = time;
 
             double density_ratio, mach_local;
-            shot.atmo.atAltitude(shot.atmo.altitude_ft + pos.y,
-                                 density_ratio, mach_local);
+            atmo_pre.atAltitude(shot.atmo.altitude_ft + pos.y,
+                                density_ratio, mach_local);
 
             auto accel = [&](const Vector3& v) -> Vector3 {
                 Vector3 v_rel = v - wind_vec;
@@ -446,7 +472,9 @@ private:
                 Vector3 a = {0.0, kGravityFps2, 0.0};
                 if (speed > 0.0) {
                     double mach = speed / mach_local;
-                    double drag = density_ratio * shot.drag.dragByMach(mach);
+                    double drag = density_ratio
+                        * shot.drag.spline.evalHinted(mach, spline_hint)
+                        * drag_coeff;
                     a -= v_rel * (drag * speed);
                 }
                 a += shot.coriolis.acceleration(v);
@@ -466,7 +494,7 @@ private:
             pos += (k1p + k2p * 2.0 + k3p * 2.0 + k4p) * (dt / 6.0);
             time += dt;
 
-            if (vel.magnitude() < kMinVelocity) break;
+            if (vel.magnitudeSquared() < kMinVelocitySq) break;
             if (pos.y < kMaxDrop) break;
         }
 
@@ -479,8 +507,8 @@ private:
         Vector3 ivel = prev_vel + (vel - prev_vel) * frac;
         double  itime = prev_time + (time - prev_time) * frac;
 
-        // Apply spin drift
-        ipos.z += shot.spinDrift(itime);
+        // Apply spin drift (using pre-computed stability coefficient)
+        ipos.z += shot.spinDrift(itime, sg);
 
         TrajectoryPoint pt;
         pt.time_s       = itime;

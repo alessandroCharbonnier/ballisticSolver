@@ -82,6 +82,29 @@ struct PchipSpline {
         return a[lo] + dx * (b[lo] + dx * (c[lo] + dx * d[lo]));
     }
 
+    /// Evaluate Cd with search hint for sequential access patterns.
+    /// The hint tracks the last-used interval for O(1) amortized lookups
+    /// when Mach values change monotonically (typical in trajectory integration).
+    double evalHinted(double mach, size_t& hint) const {
+        if (n < 2) return 0.0;
+        if (mach <= x[0])     return a[0];
+        if (mach >= x[n - 1]) return a[n - 1];
+
+        size_t lo = hint;
+        if (lo >= n - 1) lo = 0;
+
+        // Linear scan from hint position
+        if (x[lo] > mach) {
+            while (lo > 0 && x[lo] > mach) --lo;
+        } else {
+            while (lo < n - 2 && x[lo + 1] <= mach) ++lo;
+        }
+
+        hint = lo;
+        double dx = mach - x[lo];
+        return a[lo] + dx * (b[lo] + dx * (c[lo] + dx * d[lo]));
+    }
+
 private:
     /// Fritsch-Carlson method for monotone-preserving slopes.
     void computeSlopes(const std::vector<double>& delta,

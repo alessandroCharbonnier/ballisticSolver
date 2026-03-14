@@ -36,6 +36,9 @@ struct Vector3 {
     /// Euclidean magnitude.
     double magnitude() const { return std::sqrt(x * x + y * y + z * z); }
 
+    /// Squared magnitude (avoids sqrt for comparisons).
+    constexpr double magnitudeSquared() const { return x * x + y * y + z * z; }
+
     /// Unit vector (returns zero vector if magnitude < eps).
     Vector3 normalized(double eps = 1e-10) const {
         double m = magnitude();

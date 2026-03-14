@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Performance: polynomial barometric formula** — replaced `std::pow()` in `AtmoPrecomp::atAltitude()` with 5th-order Horner's polynomial (exact to double precision for trajectory altitude ranges), eliminating the most expensive per-step call on ESP32
+- **Performance: dry-air density fast path** — `cipmDensity()` skips `std::exp()` and all water vapor calculations when humidity is zero (the default and most common setting)
+- **Performance: hinted spline evaluation** — added `PchipSpline::evalHinted()` with O(1) amortized lookups instead of O(log n) binary search, used in all integration loops where Mach changes monotonically
+- **Performance: pre-computed loop invariants** — drag coefficient factor, stability coefficient, and atmospheric base values computed once before integration instead of per-step
+- **Performance: magnitudeSquared termination** — replaced `magnitude() < threshold` with `magnitudeSquared() < threshold²` in termination checks, eliminating one `sqrt()` per integration step
+- **Performance: compiler flags** — added `-fno-math-errno` for ESP32 build, `-O2` for native test builds
+
 ### Added
 - **87 comparison test scenarios** (up from 75) with 1850 trajectory points
 - **6 multi-BC scenarios** — velocity-stepped ballistic coefficients validated across C++ and Python:

@@ -98,7 +98,7 @@ constexpr uint32_t AUTO_DIM_TIMEOUT_MS     = 120000;  // 2min → dim display
 constexpr uint32_t AUTO_SLEEP_TIMEOUT_MS   = 600000;  // 10min without motion → deep sleep
 constexpr uint8_t  DISPLAY_CONTRAST_FULL   = 255;    // normal brightness
 constexpr uint8_t  DISPLAY_CONTRAST_DIM    = 35;     // ~20% of full (~80% reduction)
-constexpr float    MOTION_THRESHOLD_MPS2   = 4.2f;   // accel delta in m/s² (~0.43g)
+constexpr float    MOTION_THRESHOLD_MPS2   = 2.0f;   // accel delta in m/s² (~0.43g)
 
 // ---------------------------------------------------------------------------
 //  Battery ADC (voltage divider: 100kΩ + 100kΩ on GPIO36/VP)
