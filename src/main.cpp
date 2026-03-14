@@ -246,6 +246,12 @@ void loop() {
     // ── Captive portal DNS ────────────────────────────────────────────────
     g_web.processDNS();
 
+    // Sync WiFi state — the web UI can shut down WiFi independently
+    if (g_modes.wifiOn() != g_web.isActive()) {
+        g_modes.setWifiOn(g_web.isActive());
+        digitalWrite(cfg::PIN_LED, g_web.isActive() ? HIGH : LOW);
+    }
+
     // ── Cant calibration completion ───────────────────────────────────────
     if (g_sensors.cantCalibrationDone()) {
         g_rifle.cant_offset = g_sensors.cantCalibrationResult();

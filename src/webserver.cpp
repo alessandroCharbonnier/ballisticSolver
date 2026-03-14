@@ -21,6 +21,7 @@ extern Sensors g_sensors;
 
 static AsyncWebServer* s_server = nullptr;
 static DNSServer*      s_dns    = nullptr;
+static volatile bool   s_wifi_off_pending = false;
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  Request handlers
@@ -186,13 +187,10 @@ static void handleSave(AsyncWebServerRequest* req, uint8_t* data,
     req->send(200, "text/plain", "OK");
 }
 
-/// POST /api/wifi/off — schedule WiFi shutdown.
+/// POST /api/wifi/off — schedule WiFi shutdown on the main loop.
 static void handleWifiOff(AsyncWebServerRequest* req) {
     req->send(200, "text/plain", "WiFi shutting down");
-    // Delay the actual shutdown so the response can be sent
-    delay(500);
-    WiFi.softAPdisconnect(true);
-    WiFi.mode(WIFI_OFF);
+    s_wifi_off_pending = true;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -250,11 +248,20 @@ void WebServer_::stop() {
     if (!active_) return;
     if (s_dns) s_dns->stop();
     WiFi.softAPdisconnect(true);
-    WiFi.mode(WIFI_OFF);
+    // Use esp_wifi_stop() instead of WiFi.mode(WIFI_OFF) to preserve the
+    // netif layer.  WiFi.mode(WIFI_OFF) destroys the default AP netif but
+    // doesn't fully deregister the netstack callback, causing
+    // "netstack cb reg failed with 12308" on the next WiFi.mode(WIFI_AP).
+    esp_wifi_stop();
     active_ = false;
+    s_wifi_off_pending = false;
 }
 
 void WebServer_::processDNS() {
+    if (s_wifi_off_pending) {
+        stop();
+        return;
+    }
     if (active_ && s_dns) s_dns->processNextRequest();
 }
 

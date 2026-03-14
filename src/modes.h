@@ -35,6 +35,7 @@ public:
     AppState     appState()    const { return app_state_; }
     uint8_t      menuCursor()  const { return menu_cursor_; }
     bool         wifiOn()      const { return wifi_on_; }
+    void         setWifiOn(bool on)  { wifi_on_ = on; }
     bool         wifiToggled()       { bool t = wifi_toggled_; wifi_toggled_ = false; return t; }
     uint16_t     distance()    const;
     uint8_t      stageIndex()  const { return stage_idx_; }

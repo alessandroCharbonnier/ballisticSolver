@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- **WiFi cycling crash** — replaced `WiFi.mode(WIFI_OFF)` with `esp_wifi_stop()` in `WebServer_::stop()` to preserve the ESP32 netif layer. `WiFi.mode(WIFI_OFF)` destroys the default AP netif but doesn't fully deregister the netstack callback, causing `netstack cb reg failed with 12308` (`ESP_ERR_INVALID_STATE`) on the next `WiFi.mode(WIFI_AP)`.
+- **Web UI `/api/wifi/off` state desync** — `handleWifiOff` now sets a pending flag instead of directly calling `WiFi.softAPdisconnect()`/`WiFi.mode(WIFI_OFF)` from the async handler. Shutdown is deferred to `processDNS()` on the main loop, which calls `stop()` properly. This prevents `active_` from staying stale and avoids blocking `delay()` inside the async web server task.
+- **WiFi LED/menu sync** — main loop now syncs `Modes::wifi_on_` and LED state with `WebServer_::isActive()` after each `processDNS()` call, so the menu and LED stay correct when WiFi is shut down from the web UI.
+
 ### Changed
 - **Performance: float inner loop (ESP32 hardware FPU)** — all three integration methods (`traceToDistance`, `traceToPoint`, `trajectory`) now run velocity, acceleration, and RK45 stages in single-precision `float` (`Vector3f`), leveraging the ESP32 Xtensa LX6 hardware FPU. Position accumulation stays in `double` to prevent systematic drift. Each double multiply/divide on ESP32 was ~10-50× slower than float due to software emulation; with ~50+ float vector ops per RK45 step, this yields a major speedup. `sqrtf(sqrtf(x))` replaces `pow(x, 0.25)` for step rejection scaling (two hardware sqrtf vs software double pow). Float's 7 significant digits give sub-0.01 MOA accuracy per step — well below BC/atmosphere model uncertainty.
 - **Performance: adaptive RK45 Dormand-Prince integrator** — replaced fixed-step RK4 (dt=0.0025s, ~1400 steps at 2000m) with adaptive Dormand-Prince RK4(5) using embedded error estimation. Automatically uses large steps (~0.01-0.02s) in smooth supersonic flight and small steps near transonic transition. Reduces step count by ~3-5× for long-range shots while maintaining accuracy via per-step error control (tolerance 1e-6 ft)
