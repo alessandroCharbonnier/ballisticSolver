@@ -646,6 +646,19 @@ def compare_rows(
     TOL_TIME_S      = 0.01    # seconds
     TOL_ENERGY_PCT  = 2.0     # percent
 
+    # Error tracking for statistics
+    drop_errors = []      # absolute error in inches
+    wind_errors = []      # absolute error in inches
+    vel_errors = []       # absolute error in fps
+    mach_errors = []      # absolute error
+    time_errors = []      # absolute error in seconds
+    energy_pct_errors = []  # percent error
+
+    # Per-point tolerance usage (error / tolerance ratio)
+    drop_ratios = []
+    vel_ratios = []
+    wind_ratios = []
+
     all_keys = sorted(set(py_rows.keys()) | set(cpp_rows.keys()))
 
     for key in all_keys:
@@ -699,6 +712,70 @@ def compare_rows(
             messages.extend(f"          {e}" for e in errs)
         else:
             passed += 1
+
+        # Collect error statistics for every matched point
+        d_drop = abs(py.drop_in - cpp.drop_in)
+        d_wind = abs(py.windage_in - cpp.windage_in)
+        d_vel  = abs(py.vel_fps - cpp.vel_fps)
+        d_mach = abs(py.mach - cpp.mach)
+        d_time = abs(py.time_s - cpp.time_s)
+        d_epct = (abs(py.energy_ftlb - cpp.energy_ftlb) / py.energy_ftlb * 100
+                  if py.energy_ftlb > 0 else 0.0)
+
+        drop_errors.append(d_drop)
+        wind_errors.append(d_wind)
+        vel_errors.append(d_vel)
+        mach_errors.append(d_mach)
+        time_errors.append(d_time)
+        energy_pct_errors.append(d_epct)
+
+        dist_factor = max(1.0, dist / 500.0)
+        tol_drop_eff = max(TOL_DROP_IN * dist_factor, abs(py.drop_in) * 0.003)
+        tol_vel_eff  = TOL_VEL_FPS * dist_factor
+        tol_wind_eff = max(TOL_WINDAGE_IN * dist_factor, abs(py.windage_in) * 0.0025 + 0.1)
+        if tol_drop_eff > 0:
+            drop_ratios.append(d_drop / tol_drop_eff)
+        if tol_vel_eff > 0:
+            vel_ratios.append(d_vel / tol_vel_eff)
+        if tol_wind_eff > 0:
+            wind_ratios.append(d_wind / tol_wind_eff)
+
+    # Build error statistics summary
+    def _stats(vals):
+        if not vals:
+            return 0.0, 0.0, 0.0
+        return max(vals), sum(vals) / len(vals), sorted(vals)[int(len(vals) * 0.95)]
+
+    messages.append("")
+    messages.append("=" * 70)
+    messages.append("  Error Statistics (C++ vs Python)")
+    messages.append("=" * 70)
+    messages.append(f"  {'Metric':<14} {'Max':>10} {'Mean':>10} {'P95':>10} {'Unit':<8}")
+    messages.append("  " + "-" * 54)
+
+    mx, mn, p95 = _stats(drop_errors)
+    messages.append(f"  {'Drop':<14} {mx:>10.4f} {mn:>10.4f} {p95:>10.4f} {'in':<8}")
+    mx, mn, p95 = _stats(wind_errors)
+    messages.append(f"  {'Windage':<14} {mx:>10.4f} {mn:>10.4f} {p95:>10.4f} {'in':<8}")
+    mx, mn, p95 = _stats(vel_errors)
+    messages.append(f"  {'Velocity':<14} {mx:>10.4f} {mn:>10.4f} {p95:>10.4f} {'fps':<8}")
+    mx, mn, p95 = _stats(mach_errors)
+    messages.append(f"  {'Mach':<14} {mx:>10.6f} {mn:>10.6f} {p95:>10.6f} {'':<8}")
+    mx, mn, p95 = _stats(time_errors)
+    messages.append(f"  {'Time':<14} {mx:>10.6f} {mn:>10.6f} {p95:>10.6f} {'s':<8}")
+    mx, mn, p95 = _stats(energy_pct_errors)
+    messages.append(f"  {'Energy':<14} {mx:>10.4f} {mn:>10.4f} {p95:>10.4f} {'%':<8}")
+
+    messages.append("")
+    messages.append("  Tolerance Usage (error / tolerance):")
+    messages.append(f"  {'Metric':<14} {'Max':>10} {'Mean':>10} {'P95':>10}")
+    messages.append("  " + "-" * 44)
+    mx, mn, p95 = _stats(drop_ratios)
+    messages.append(f"  {'Drop':<14} {mx:>10.2%} {mn:>10.2%} {p95:>10.2%}")
+    mx, mn, p95 = _stats(vel_ratios)
+    messages.append(f"  {'Velocity':<14} {mx:>10.2%} {mn:>10.2%} {p95:>10.2%}")
+    mx, mn, p95 = _stats(wind_ratios)
+    messages.append(f"  {'Windage':<14} {mx:>10.2%} {mn:>10.2%} {p95:>10.2%}")
 
     return passed, failed, messages
 

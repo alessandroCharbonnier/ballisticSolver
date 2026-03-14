@@ -367,7 +367,7 @@ private:
             double  mach  = speed / mach_local;
             double  drag  = density_ratio * shot.drag.dragByMach(mach);
 
-            // RK4 for velocity
+            // RK4 for velocity (includes Coriolis to match Python zero-finder)
             auto dragAccel = [&](const Vector3& v) -> Vector3 {
                 Vector3 vr = v - wind_vec;
                 double  sp = vr.magnitude();
@@ -377,6 +377,7 @@ private:
                     double d = density_ratio * shot.drag.dragByMach(m);
                     a -= vr * (d * sp);
                 }
+                a += shot.coriolis.acceleration(v);
                 return a;
             };
 

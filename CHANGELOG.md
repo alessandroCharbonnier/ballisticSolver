@@ -35,6 +35,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   same tight tolerances as single-BC.
 - Removed multi-BC tolerance multiplier from test harness; all 1850 points use
   uniform tolerances (drop 0.65", velocity 5 fps, energy 2%).
+- **Fixed C++ molar mass constant** (`atmosphere.h` CIPM-2007 density model):
+  corrected `Ma` from `28.9635e-3` to `28.96546e-3` kg/mol to match the
+  published CIPM-2007 standard and the Python reference.  Eliminates a ~0.007%
+  systematic error in air density calculations.
+- **Added Coriolis to C++ zero-finder** (`traceToDistance` in `engine_rk4.h`):
+  the zero-finding integrator now includes Coriolis acceleration, matching the
+  Python engine which uses its full `_integrate()` (with Coriolis) for zeroing.
+  Previously the C++ zero-finder omitted Coriolis, causing a small systematic
+  bias in the barrel elevation when Coriolis was enabled.
 - `run_cpp_binary()` now uses per-scenario step sizes instead of hardcoded 100 yd snap, supporting 25 yd (`.22 LR`), 50 yd (`PRS`), and 100 yd step intervals
 - Increased C++ binary execution timeout from 60s to 300s to accommodate 75 scenarios
 - Updated README trajectory point count from 173 to ~1500

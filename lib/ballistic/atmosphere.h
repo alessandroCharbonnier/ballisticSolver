@@ -112,7 +112,7 @@ private:
             + (p_pa / t_k) * (p_pa / t_k) * (e0 + f0 * x_v * x_v);
 
         // Molar masses
-        constexpr double Ma = 28.9635e-3;   // kg/mol  dry air
+        constexpr double Ma = 28.96546e-3;  // kg/mol  dry air (CIPM-2007)
         constexpr double Mv = 18.01528e-3;  // kg/mol  water
         constexpr double R  = 8.314472;     // J/(mol·K)
 
