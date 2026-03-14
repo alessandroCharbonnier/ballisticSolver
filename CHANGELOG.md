@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Changed
+- **Performance: float inner loop (ESP32 hardware FPU)** — all three integration methods (`traceToDistance`, `traceToPoint`, `trajectory`) now run velocity, acceleration, and RK45 stages in single-precision `float` (`Vector3f`), leveraging the ESP32 Xtensa LX6 hardware FPU. Position accumulation stays in `double` to prevent systematic drift. Each double multiply/divide on ESP32 was ~10-50× slower than float due to software emulation; with ~50+ float vector ops per RK45 step, this yields a major speedup. `sqrtf(sqrtf(x))` replaces `pow(x, 0.25)` for step rejection scaling (two hardware sqrtf vs software double pow). Float's 7 significant digits give sub-0.01 MOA accuracy per step — well below BC/atmosphere model uncertainty.
 - **Performance: adaptive RK45 Dormand-Prince integrator** — replaced fixed-step RK4 (dt=0.0025s, ~1400 steps at 2000m) with adaptive Dormand-Prince RK4(5) using embedded error estimation. Automatically uses large steps (~0.01-0.02s) in smooth supersonic flight and small steps near transonic transition. Reduces step count by ~3-5× for long-range shots while maintaining accuracy via per-step error control (tolerance 1e-6 ft)
 - **Performance: atmosphere amortization** — atmospheric density and speed of sound recalculated every 8 steps instead of every step, reducing CIPM density + `sqrt()` overhead by ~87% with negligible error (<0.001% density change over 8 steps)
 - **Performance: reciprocal Mach pre-compute** — replaced 4× `speed / mach_local` divisions per step with 4× multiplications by pre-computed `1.0 / mach_local` (updated at atmosphere refresh). Eliminates ~6000 cycles/step on ESP32 software double FPU
@@ -20,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Performance: compiler flags** — added `-fno-math-errno` for ESP32 build, `-O2` for native test builds
 
 ### Added
+- `Vector3f` single-precision 3D vector type (`vector3d.h`) with hardware `sqrtf()` magnitude, used by float inner loops
+- `CoriolisParams::accelerationF()` float-precision overload for inner-loop Coriolis computation
 - **87 comparison test scenarios** (up from 75) with 1850 trajectory points
 - **6 multi-BC scenarios** — velocity-stepped ballistic coefficients validated across C++ and Python:
   6.5 CM Berger 140 HT, 6.5 CM 147 ELD-M (with wind), .338 LM Berger 300, .300 PRC Berger 230 (altitude),

@@ -6,7 +6,7 @@ validated to within 0.3% of the Python reference across 87 scenarios and 1850 tr
 
 ## Features
 
-- **Pure C++ ballistic engine** — header-only library with RK4 integration, PCHIP interpolation,
+- **Pure C++ ballistic engine** — header-only library with adaptive RK45 Dormand-Prince integration (float inner loop on ESP32 hardware FPU, double position accumulation), PCHIP interpolation,
   CIPM-2007 atmosphere model, spin drift (Litz formula), Miller stability, Coriolis-ready (disabled pending magnetometer calibration)
 - **All 9 standard drag tables**: G1, G7, G2, G5, G6, G8, GI, GS, RA4
 - **Multi-BC support** — velocity-stepped ballistic coefficients
@@ -99,13 +99,13 @@ Ballistic Sentinel/
 ├── lib/ballistic/          # Header-only C++ ballistic library
 │   ├── ballistic.h         # Umbrella include
 │   ├── constants.h         # Physical constants, unit conversions
-│   ├── vector3d.h          # 3D vector math
+│   ├── vector3d.h          # 3D vector math (Vector3 double + Vector3f float)
 │   ├── drag_tables.h       # 9 drag tables (G1/G7/G2/G5/G6/G8/GI/GS/RA4)
 │   ├── interpolation.h     # PCHIP Fritsch-Carlson spline
 │   ├── atmosphere.h        # CIPM-2007 air density model
 │   ├── drag_model.h        # Single & multi-BC drag models
 │   ├── trajectory.h        # TrajectoryPoint, CorrectionResult
-│   ├── engine_rk4.h        # RK4 integration engine, Ridder zero-finding
+│   ├── engine_rk4.h        # RK45 Dormand-Prince adaptive integrator, Ridder zero-finding
 │   └── calculator.h        # High-level API
 ├── src/                    # ESP32 firmware
 │   ├── config.h            # Pin assignments, timing constants
@@ -180,6 +180,30 @@ python tests/test_compare.py
 ```
 
 Expected: **1850/1850 PASS** (87 scenarios across 8 calibers, multiple bullets/conditions/features)
+
+## Performance Optimizations
+
+The ESP32 Xtensa LX6 has a hardware single-precision (float) FPU but emulates all double-precision operations in software (~10–50× slower per operation). The ballistic engine is optimized for this constraint:
+
+| Optimization | Description |
+|---|---|
+| **Float inner loop** | All RK45 velocity/acceleration/k-stage math uses `Vector3f` (float) on hardware FPU. Position accumulation stays in `Vector3` (double) to prevent systematic drift. `sqrtf(sqrtf(x))` replaces `pow(x, 0.25)` for step rejection. |
+| **Adaptive RK45 Dormand-Prince** | Replaces fixed-step RK4. Auto-sizes dt from 0.0005s–0.02s based on local truncation error. Large steps in smooth supersonic flight, small steps near transonic. ~3–5× fewer steps than fixed-step at long range. |
+| **Atmosphere amortization** | Atmospheric density and speed-of-sound recalculated every 8 steps instead of every step (~87% reduction in CIPM-2007 overhead). |
+| **Reciprocal Mach pre-compute** | `1.0/mach_local` computed once per atmosphere refresh, used as multiplication in all 6–7 RK stages per step. |
+| **Polynomial barometric formula** | 5th-order Horner's polynomial replaces `std::pow()` in altitude lookup. |
+| **Dry-air density fast path** | `cipmDensity()` skips `exp()` and water vapor math when humidity = 0 (the default). |
+| **Hinted spline evaluation** | `PchipSpline::evalHinted()` with O(1) amortized lookups instead of O(log n) binary search. |
+
+### Double-Precision Fallback
+
+To revert all integration loops to double precision (for accuracy comparison or debugging), add to `platformio.ini`:
+
+```ini
+build_flags =
+    -DUSE_DOUBLE_INNER_LOOP
+    ...
+```
 
 ## Web Interface
 
@@ -299,6 +323,7 @@ These features address the real-world error budget identified via physics audit 
 | 12 | Target angular size / mil-ranging | Calculate target size in mils for rangefinder-less verification or unknown-distance stages (UKD). |
 | 13 | Bullet library / presets | Built-in database of common bullets (Sierra, Hornady, Berger) with BC + dimensions pre-filled. Huge time saver. |
 | 14 | Shot logging / history | Record shot conditions, corrections, and results for post-session review and trend analysis. |
+| 15 | ~~double precision~~ | ✅ Implemented — add `-DUSE_DOUBLE_INNER_LOOP` to `build_flags` in `platformio.ini` to revert all integration loops from float to double precision |
 
 #### Not Worth Implementing (diminishing returns)
 

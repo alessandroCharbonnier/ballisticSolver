@@ -63,4 +63,49 @@ constexpr Vector3 operator*(double s, const Vector3& v) { return v * s; }
 /// Sentinel zero vector.
 constexpr Vector3 kZeroVector{0.0, 0.0, 0.0};
 
+// -----------------------------------------------------------------------
+//  Single-precision vector for ESP32 hardware FPU inner loops.
+//  Position accumulation stays in Vector3 (double) to prevent drift.
+// -----------------------------------------------------------------------
+
+struct Vector3f {
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+
+    constexpr Vector3f() = default;
+    constexpr Vector3f(float x_, float y_, float z_) : x(x_), y(y_), z(z_) {}
+
+    /// Narrowing conversion from double vector.
+    explicit constexpr Vector3f(const Vector3& v)
+        : x(static_cast<float>(v.x)),
+          y(static_cast<float>(v.y)),
+          z(static_cast<float>(v.z)) {}
+
+    // --- Arithmetic ---
+    constexpr Vector3f operator+(const Vector3f& b) const { return {x + b.x, y + b.y, z + b.z}; }
+    constexpr Vector3f operator-(const Vector3f& b) const { return {x - b.x, y - b.y, z - b.z}; }
+    constexpr Vector3f operator*(float s)           const { return {x * s,   y * s,   z * s  }; }
+    constexpr Vector3f operator-()                  const { return {-x, -y, -z}; }
+
+    Vector3f& operator+=(const Vector3f& b) { x += b.x; y += b.y; z += b.z; return *this; }
+    Vector3f& operator-=(const Vector3f& b) { x -= b.x; y -= b.y; z -= b.z; return *this; }
+    Vector3f& operator*=(float s)           { x *= s;   y *= s;   z *= s;   return *this; }
+
+    /// Dot product.
+    constexpr float dot(const Vector3f& b) const { return x * b.x + y * b.y + z * b.z; }
+
+    /// Euclidean magnitude — uses hardware sqrtf on ESP32.
+    float magnitude() const { return sqrtf(x * x + y * y + z * z); }
+
+    /// Squared magnitude (avoids sqrt for comparisons).
+    constexpr float magnitudeSquared() const { return x * x + y * y + z * z; }
+
+    /// Widen to double vector (for position accumulation).
+    constexpr Vector3 toDouble() const { return {double(x), double(y), double(z)}; }
+};
+
+/// Scalar * float vector.
+constexpr Vector3f operator*(float s, const Vector3f& v) { return v * s; }
+
 }  // namespace ballistic
