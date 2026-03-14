@@ -143,11 +143,11 @@ void Display::showWakeProgress(uint8_t pct) {
     }
     u8g2_.clearBuffer();
     u8g2_.setFont(u8g2_font_5x8_mf);
-    u8g2_.drawStr(24, 26, "Hold to wake...");
+    u8g2_.drawStr(24, 26, "Hold to turn on...");
     // Progress bar: 100px wide, 8px tall, centered
     const int bx = 14, by = 34, bw = 100, bh = 8;
     u8g2_.drawFrame(bx, by, bw, bh);
-    int fill = (int)((uint32_t)pct * (bw - 2) / 100);
+    int fill = (int)((uint32_t)pct * bw / 100);
     if (fill > 0) {
         u8g2_.drawBox(bx + 1, by + 1, fill, bh - 2);
     }

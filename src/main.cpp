@@ -154,7 +154,7 @@ void setup() {
     // If released early, go straight back to sleep.
     if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
         Serial.println("[main] Woke from deep sleep — hold CENTER 5s to confirm");
-        const uint32_t wake_hold_ms = 5000;
+        const uint32_t wake_hold_ms = cfg::WAKE_HOLD_MS;
         uint32_t hold_start = millis();
         bool confirmed = false;
 

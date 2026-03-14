@@ -53,7 +53,8 @@ constexpr uint8_t PIN_BTN_CENTER   = 27;
 
 // Debounce & long-press timing (ms)
 constexpr uint16_t BTN_DEBOUNCE_MS      = 50;
-constexpr uint16_t BTN_LONG_PRESS_MS    = 5000;  // deep sleep
+constexpr uint32_t WAKE_HOLD_MS         = 3000;  // wake hold time
+constexpr uint16_t BTN_LONG_PRESS_MS    = 3000;  // deep sleep
 constexpr uint16_t BTN_DOUBLE_PRESS_MS  = 300;   // double-press window
 constexpr uint16_t BTN_REPEAT_DELAY_MS  = 400;   // auto-repeat start
 constexpr uint16_t BTN_REPEAT_RATE_MS   = 150;   // auto-repeat interval
