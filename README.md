@@ -268,23 +268,47 @@ Tolerance: max(0.65"/500yd × distance, 0.3% of absolute value)
 
 ### Potential Features
 
+#### Ballistic Engine Accuracy
+
+These features address the real-world error budget identified via physics audit and Doppler radar field data (Lapua, Applied Ballistics). Ordered by impact on accuracy.
+
+| Priority | Feature | Impact | Rationale |
+|----------|---------|--------|-----------|
+| 1 | **Custom Cd vs Mach drag tables** | Eliminates 1–3+ mil ELR error | G7/G1 are reference-shape approximations. Real bullets have unique drag curves, especially in transonic (Mach 0.9–1.2). Applied Ballistics and Lapua publish Doppler-measured Cd tables. Infrastructure already exists — `PchipSpline` + `DragModel` just need a raw `(Mach, Cd)` constructor that bypasses reference table + BC division. Single highest-impact accuracy improvement possible. |
+| 2 | **BC/MV truing from observed impacts** | ~0.3–1 mil at all ranges | Manufacturer BCs can be off 3–5%. MV varies lot-to-lot. Truing adjusts BC and/or MV to match actual observed drop at a known distance. Every serious ballistic app (AB, Kestrel, Strelok) has this. Without it, there's no closed-loop correction. |
+| 3 | **Humidity correction to speed of sound** | ~0.05 mil at ELR | Current Mach calculation uses dry-air ideal gas (`sqrt(T_R) × 49.0223`). At 35°C/100% RH, humid air transmits sound ~1.5 m/s faster (0.44% shift). This shifts the transonic boundary and Cd lookup. Low effort — adjust `mach_fps` using water vapor mole fraction already computed by CIPM-2007. |
+| 4 | **Aerodynamic jump correction** | ~0.1–0.3 MOA crosswind | When a crosswind acts on a spinning bullet at launch, gyroscopic precession deflects it vertically (up or down depending on twist direction and wind side). Currently ignored. Formula: `AJ ≈ (2 * Clα * ρ * S * d * p) / (2 * m * V) * wind_cross`. Matters at ELR and in strong crosswind. |
+| 5 | **Drag table blending / transonic Cd override** | Reduces transonic uncertainty | Allow users to override specific Mach regions of the drag table (e.g., Mach 0.9–1.2) with measured data while keeping G7 elsewhere. Useful for shooters who have partial Doppler data or truing data at transonic distances. |
+
+#### Device & UX Features
+
 | Priority | Feature | Rationale |
 |----------|---------|-----------|
-| 1 | Multiple rifle/load profiles | Hobby shooters often own 3-10 rifles. Switching profiles must be trivial. |
-| 2 | timer in live / staged | pressing on timer icon will start the countdown, can be configured in device or via webapp |
+| 1 | Multiple rifle/load profiles | Hobby shooters often own 3–10 rifles. Switching profiles must be trivial. |
+| 2 | Timer in live / staged | Pressing on timer icon starts a countdown, configurable on device or via web app. |
 | 2 | GPS integration (phone → device) | Auto-populate latitude, altitude, and azimuth. Removes manual entry errors for Coriolis. |
 | 3 | Wind sensor activation (Calypso or Kestrel link) | Measured wind >> guessed wind. Finish the Calypso UART or add Kestrel BLE link. |
 | 4 | Azimuth-aware wind decomposition | Show headwind/crosswind components relative to shot direction, not just raw wind angle. Helps shooters visualize the actual correction. |
 | 5 | Come-up card / range table export | Many hobbyists tape a card to their stock. Web UI "print range card" is the killer feature for casual use. |
-| 6 | BC/MV truing | Hobby shooters don't always have chronographs. Truing from impacts at known distance is how they calibrate. |
-| 7 | Rangefinder BLE integration | Nice-to-have for practice sessions; not needed for competition (Stage mode covers it). |
-| 8 | Larger display or e-ink option | Hobbyists shoot in bright sun at benches. E-ink is sunlight-readable and ultra-low power. |
-| 9 | Unit conversion calculator | Quick MOA↔MRAD, yards↔meters, fps↔m/s. Hobbyists constantly convert between systems. |
-| 10 | BLE phone app | Richer UI for config, real-time mirroring, shot log export, GPS feed — all over low-power BLE. |
-| 11 | OTA firmware updates | Hobby users won't flash firmware via USB. WiFi OTA update from web UI is essential for adoption. |
-| 12 | Onboard tutorial / help screens | Brief "how to use" on first boot or from menu. Reduces learning curve. |
-| 13 | Target angular size / mil-ranging | Calculate target size in mils for rangefinder-less verification or unknown-distance stages (UKD). |
-| 14 | Bullet library / presets | Built-in database of common bullets (Sierra, Hornady, Berger) with BC + dimensions pre-filled. Huge time saver. |
+| 6 | Rangefinder BLE integration | Nice-to-have for practice sessions; not needed for competition (Stage mode covers it). |
+| 7 | Larger display or e-ink option | Hobbyists shoot in bright sun at benches. E-ink is sunlight-readable and ultra-low power. |
+| 8 | Unit conversion calculator | Quick MOA↔MRAD, yards↔meters, fps↔m/s. Hobbyists constantly convert between systems. |
+| 9 | BLE phone app | Richer UI for config, real-time mirroring, shot log export, GPS feed — all over low-power BLE. |
+| 10 | OTA firmware updates | Hobby users won't flash firmware via USB. WiFi OTA update from web UI is essential for adoption. |
+| 11 | Onboard tutorial / help screens | Brief "how to use" on first boot or from menu. Reduces learning curve. |
+| 12 | Target angular size / mil-ranging | Calculate target size in mils for rangefinder-less verification or unknown-distance stages (UKD). |
+| 13 | Bullet library / presets | Built-in database of common bullets (Sierra, Hornady, Berger) with BC + dimensions pre-filled. Huge time saver. |
+| 14 | Shot logging / history | Record shot conditions, corrections, and results for post-session review and trend analysis. |
+
+#### Not Worth Implementing (diminishing returns)
+
+| Feature | Why not | Actual impact |
+|---------|---------|---------------|
+| 6DOF model | Requires bullet-specific aerodynamic coefficients (Clα, Cmα, Cnpα, etc.) that shooters don't have. Without them, 6DOF is no better than 3DOF. | ~0.2 mil at 2,700m — dwarfed by transonic drag uncertainty |
+| Improved spin drift model | Litz formula is ~10–20% approximate, but spin drift itself is small at PRS ranges. Proper modeling requires 6DOF. | ~0.04 MOA at PRS, ~0.2–0.5 MOA at ELR |
+| Altitude-dependent gravity | $g$ varies by ~0.3% from sea level to 10,000 ft. | < 0.01 mil even at ELR |
+| Earth curvature correction | Drop-away of ~8" per mile². | ~0.02 mil at 2,000 yd, negligible at PRS |
+| Adaptive RK4 step size | Current fixed dt=0.0025s is already accurate to < 0.01 mil. | No measurable improvement |
 
 
 
