@@ -470,8 +470,7 @@ def compare_rows(
         if errs:
             failed += 1
             messages.append(f"  FAIL  {scenario} @ {dist:.0f} yd:")
-            for e in errs:
-                messages.append(f"          {e}")
+            messages.extend(f"          {e}" for e in errs)
         else:
             passed += 1
 
@@ -514,9 +513,9 @@ def main():
         print(f"  ERROR running binary: {e.stderr}")
         return
 
-    cpp_data: Dict[Tuple[str, float], TrajectoryRow] = {}
-    for r in cpp_rows_list:
-        cpp_data[(r.scenario, r.dist_yd)] = r
+    cpp_data: Dict[Tuple[str, float], TrajectoryRow] = {
+        (r.scenario, r.dist_yd): r for r in cpp_rows_list
+    }
     print(f"  Total C++ points: {len(cpp_data)}")
 
     # 3. Compare
