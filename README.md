@@ -249,6 +249,42 @@ correction unit selection (MOA, SMOA, MRAD, CM, CLICKS).
 
 Tolerance: max(0.65"/500yd × distance, 0.3% of absolute value)
 
+## Ideas
+
+**Areas for Improvement**
+
+- Single rifle profile only — serious limitation; PRS shooters switch rifles/loads between stages or seasons
+- Wind: manual speed + direction only — oversimplified; no crosswind component decomposition shown to user
+- Calypso anemometer: prepared but not connected — the most valuable sensor for the use case is the one that doesn't work yet
+- WiFi AP hardcoded credentials — SSID "BallisticSentinel" / password "longrange"; anyone at the range can connect and modify config
+- 128×64 monochrome OLED — barely enough pixels for a ballistic HUD; hard to read in bright sun. Acceptable for V1 but limiting
+- No shot logging / history — can't review previous shots, stages, or environmental conditions after the fact
+- No BLE support — BLE would enable Kestrel data link and phone app integration with far less power than WiFi
+- Stage names limited to 16 chars — "Stage 3 - 487yd Barricade" doesn't fit; minor but annoying for match prep
+- No truing / velocity validation — no way to true the BC or MV from observed impacts; experienced shooters rely on this heavily
+- Latitude set manually via web UI — should auto-populate from phone GPS via the web interface
+
+### Potential Features
+
+| Priority | Feature | Rationale |
+|----------|---------|-----------|
+| 1 | Multiple rifle/load profiles | Hobby shooters often own 3-10 rifles. Switching profiles must be trivial. |
+| 2 | GPS integration (phone → device) | Auto-populate latitude, altitude, and azimuth. Removes manual entry errors for Coriolis. |
+| 3 | Wind sensor activation (Calypso or Kestrel link) | Measured wind >> guessed wind. Finish the Calypso UART or add Kestrel BLE link. |
+| 4 | Azimuth-aware wind decomposition | Show headwind/crosswind components relative to shot direction, not just raw wind angle. Helps shooters visualize the actual correction. |
+| 5 | Come-up card / range table export | Many hobbyists tape a card to their stock. Web UI "print range card" is the killer feature for casual use. |
+| 6 | BC/MV truing | Hobby shooters don't always have chronographs. Truing from impacts at known distance is how they calibrate. |
+| 7 | Rangefinder BLE integration | Nice-to-have for practice sessions; not needed for competition (Stage mode covers it). |
+| 8 | Larger display or e-ink option | Hobbyists shoot in bright sun at benches. E-ink is sunlight-readable and ultra-low power. |
+| 9 | Unit conversion calculator | Quick MOA↔MRAD, yards↔meters, fps↔m/s. Hobbyists constantly convert between systems. |
+| 10 | BLE phone app | Richer UI for config, real-time mirroring, shot log export, GPS feed — all over low-power BLE. |
+| 11 | OTA firmware updates | Hobby users won't flash firmware via USB. WiFi OTA update from web UI is essential for adoption. |
+| 12 | Onboard tutorial / help screens | Brief "how to use" on first boot or from menu. Reduces learning curve. |
+| 13 | Target angular size / mil-ranging | Calculate target size in mils for rangefinder-less verification or unknown-distance stages (UKD). |
+| 14 | Bullet library / presets | Built-in database of common bullets (Sierra, Hornady, Berger) with BC + dimensions pre-filled. Huge time saver. |
+
+
+
 ## Version History
 
 | Version | Date | Changes |
