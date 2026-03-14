@@ -50,6 +50,7 @@ public:
     void setUnitPressure(uint8_t u);
     void setWifiActive(bool active);
     void setLiveDigitCursor(uint8_t pos);   // 0=thousands, 1=hundreds, ...
+    void setBattery(float pct, float volts);
 
 private:
     U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2_{U8G2_R0, U8X8_PIN_NONE};
@@ -89,6 +90,8 @@ private:
     float    wind_speed_mph_= 0.0f;
     float    wind_angle_deg_= 0.0f;
     bool     wind_ok_       = false;
+    float    battery_pct_   = -1.0f;   // battery 0–100 (−1 = unavailable)
+    float    battery_v_      = 0.0f;    // raw battery voltage
     uint8_t  unit_distance_    = 0;
     uint8_t  unit_temperature_ = 0;
     uint8_t  unit_pressure_    = 0;

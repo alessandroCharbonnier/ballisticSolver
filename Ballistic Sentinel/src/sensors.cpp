@@ -5,6 +5,7 @@
 #include <Adafruit_BME280.h>
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
+#include <driver/adc.h>
 #include <cmath>
 
 // ── QMC5883P register definitions ─────────────────────────────────────────
@@ -139,6 +140,11 @@ void Sensors::begin() {
         s_mpu.setAccelerometerRange(MPU6050_RANGE_2_G);
         s_mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
     }
+
+    // Battery ADC (GPIO36 / VP — ADC1_CH0)
+    adc1_config_width(ADC_WIDTH_BIT_12);
+    adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_11);
+    updateBattery();  // take an initial reading
 }
 
 void Sensors::update() {
@@ -231,4 +237,33 @@ bool Sensors::cantCalibrationDone() {
         return true;
     }
     return false;
+}
+
+void Sensors::updateBattery() {
+    // Multi-sample average to reduce ADC noise
+    uint32_t sum = 0;
+    for (uint8_t i = 0; i < cfg::BATT_AVG_SAMPLES; ++i) {
+        sum += adc1_get_raw(ADC1_CHANNEL_0);
+    }
+    float raw_avg = (float)sum / (float)cfg::BATT_AVG_SAMPLES;
+
+    // ESP32 ADC1 @ 11dB attenuation: ~0–3.3V mapped to 0–4095
+    float adc_v = raw_avg * 3.3f / 4095.0f;
+    float batt_v = adc_v * cfg::BATT_DIVIDER_RATIO;
+
+    data_.battery_v = batt_v;
+
+    // LiPo discharge curve (piecewise linear approximation)
+    float pct;
+    if (batt_v >= 4.15f)      pct = 100.0f;
+    else if (batt_v >= 3.95f) pct = 80.0f + (batt_v - 3.95f) * (20.0f / 0.20f);
+    else if (batt_v >= 3.80f) pct = 50.0f + (batt_v - 3.80f) * (30.0f / 0.15f);
+    else if (batt_v >= 3.60f) pct = 20.0f + (batt_v - 3.60f) * (30.0f / 0.20f);
+    else if (batt_v >= 3.30f) pct = 5.0f  + (batt_v - 3.30f) * (15.0f / 0.30f);
+    else if (batt_v >= cfg::BATT_EMPTY_V) pct = (batt_v - cfg::BATT_EMPTY_V) * (5.0f / 0.30f);
+    else                      pct = 0.0f;
+
+    if (pct > 100.0f) pct = 100.0f;
+    if (pct < 0.0f)   pct = 0.0f;
+    data_.battery_pct = pct;
 }

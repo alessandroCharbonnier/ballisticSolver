@@ -15,6 +15,9 @@
 ///     RIGHT  → GPIO 26
 ///     CENTER → GPIO 27
 ///
+///   Battery ADC (voltage divider: 100kΩ + 100kΩ)
+///     ADC  ← GPIO 36 (VP / ADC1_CH0)
+///
 ///   Calypso Ultrasonic Anemometer (UART2, prepared — not yet connected)
 ///     RX ← GPIO 16
 ///     TX → GPIO 17
@@ -96,6 +99,16 @@ constexpr uint32_t AUTO_SLEEP_TIMEOUT_MS   = 600000;  // 10min without motion �
 constexpr uint8_t  DISPLAY_CONTRAST_FULL   = 255;    // normal brightness
 constexpr uint8_t  DISPLAY_CONTRAST_DIM    = 35;     // ~20% of full (~80% reduction)
 constexpr float    MOTION_THRESHOLD_MPS2   = 4.2f;   // accel delta in m/s² (~0.43g)
+
+// ---------------------------------------------------------------------------
+//  Battery ADC (voltage divider: 100kΩ + 100kΩ on GPIO36/VP)
+// ---------------------------------------------------------------------------
+constexpr uint8_t  PIN_BATTERY_ADC         = 36;     // GPIO36 (VP) — ADC1_CH0
+constexpr float    BATT_DIVIDER_RATIO      = 2.0f;   // R1=R2=100kΩ → ratio 2:1
+constexpr float    BATT_FULL_V             = 4.2f;   // fully charged LiPo
+constexpr float    BATT_EMPTY_V            = 3.0f;   // cutoff voltage
+constexpr uint16_t BATT_READ_INTERVAL_MS   = 10000;  // sample every 10 s
+constexpr uint8_t  BATT_AVG_SAMPLES        = 8;      // multi-sample average
 
 // ---------------------------------------------------------------------------
 //  NVS Storage Namespace

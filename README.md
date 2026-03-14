@@ -23,6 +23,7 @@ validated to within 0.25% of the Python reference across 8 scenarios and 173 tra
 - **WiFi Access Point** — configure rifle/stages via a dark-themed web UI with captive portal
 - **Persistent storage** — NVS for rifle config, stage definitions, and cant calibration
 - **Power management** — auto-dim after 2 min inactivity (~80% brightness reduction), accelerometer-based auto deep-sleep after 10 min with no motion, ESP32 light sleep between sensor intervals, event-driven ballistic recalculation (on distance change only), BME280 forced mode, compass ODR reduced to 10 Hz, WiFi modem sleep when AP active
+- **Battery monitoring** — LiPo voltage via ADC1 (GPIO36) with voltage divider, piecewise-linear discharge curve, battery icon in OLED header on all screens
 - **Unit preferences** — configurable imperial/metric units for distance, velocity, weight, length, temperature, and pressure
 
 ## Hardware
@@ -39,6 +40,8 @@ validated to within 0.25% of the Python reference across 8 scenarios and 173 tra
 | Button | 5-way digital navigation | One GPIO per direction + center |
 | Wind sensor | Calypso ultrasonic (optional) | NMEA 0183 at 4800 baud |
 | LED | On-board ESP32 LED | GPIO 2 |
+| Battery | 3.7V LiPo (e.g. 2000mAh) | Requires 2× 100kΩ voltage divider |
+| Resistors | 2 × 100kΩ | Voltage divider for battery ADC |
 
 ### Pin Map
 
@@ -54,6 +57,7 @@ validated to within 0.25% of the Python reference across 8 scenarios and 173 tra
 | **16** | Wind UART2 RX | Input | ← Calypso TX (prepared) |
 | **17** | Wind UART2 TX | Output | → Calypso RX (prepared) |
 | **2** | Status LED | Output | Solid = WiFi AP active |
+| **36** | Battery ADC (VP) | Input | Via 100kΩ+100kΩ voltage divider, ADC1_CH0 |
 
 ### I2C Bus Addresses
 
@@ -83,6 +87,8 @@ ESP32-WROOM-32
 ├── GPIO 27 ──── BTN CENTER
 ├── GPIO 16 ──── Calypso TX (RX2)
 ├── GPIO 17 ──── Calypso RX (TX2)
+├── GPIO 36 (VP) ── Battery voltage divider mid-point
+│                    (Batt+ ─[100kΩ]─ GPIO36 ─[100kΩ]─ GND)
 └── GPIO  2 ──── On-board LED
 ```
 

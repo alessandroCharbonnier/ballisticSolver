@@ -90,6 +90,7 @@ void Display::setUnitTemperature(uint8_t u) { unit_temperature_ = u; }
 void Display::setUnitPressure(uint8_t u) { unit_pressure_ = u; }
 void Display::setWifiActive(bool a) { wifi_active_ = a; }
 void Display::setLiveDigitCursor(uint8_t pos) { digit_cursor_ = pos; }
+void Display::setBattery(float pct, float volts) { battery_pct_ = pct; battery_v_ = volts; }
 
 void Display::setAppState(uint8_t state) { app_state_ = state; }
 void Display::setMenuCursor(uint8_t cursor) { menu_cursor_ = cursor; }
@@ -205,6 +206,7 @@ void Display::drawSensorView() {
     u8g2_.setFont(u8g2_font_5x8_mf);
     char buf[26];
     int y = 8;
+    constexpr int dy = 9;  // 9px line spacing to fit 7 rows in 64px
 
     // Temperature
     float t = temp_f_;
@@ -214,7 +216,7 @@ void Display::drawSensorView() {
         ts = "C";
     }
     snprintf(buf, sizeof(buf), "Temp   %6.1f %s", (double)t, ts);
-    u8g2_.drawStr(0, y, buf); y += 10;
+    u8g2_.drawStr(0, y, buf); y += dy;
 
     // Pressure
     if (unit_pressure_ == 1) {
@@ -223,19 +225,19 @@ void Display::drawSensorView() {
     } else {
         snprintf(buf, sizeof(buf), "Press  %5.2f inHg", (double)press_inhg_);
     }
-    u8g2_.drawStr(0, y, buf); y += 10;
+    u8g2_.drawStr(0, y, buf); y += dy;
 
     // Humidity
     snprintf(buf, sizeof(buf), "Humid  %5.1f %%", (double)humidity_);
-    u8g2_.drawStr(0, y, buf); y += 10;
+    u8g2_.drawStr(0, y, buf); y += dy;
 
     // Heading
     snprintf(buf, sizeof(buf), "Head   %5.1f deg", (double)heading_deg_);
-    u8g2_.drawStr(0, y, buf); y += 10;
+    u8g2_.drawStr(0, y, buf); y += dy;
 
     // Cant
     snprintf(buf, sizeof(buf), "Cant   %+5.1f deg", (double)(cant_deg_ - cant_offset_));
-    u8g2_.drawStr(0, y, buf); y += 10;
+    u8g2_.drawStr(0, y, buf); y += dy;
 
     // Wind
     if (wind_ok_) {
@@ -243,6 +245,15 @@ void Display::drawSensorView() {
                  (double)wind_speed_mph_, (double)wind_angle_deg_);
     } else {
         snprintf(buf, sizeof(buf), "Wind   --  N/A");
+    }
+    u8g2_.drawStr(0, y, buf); y += dy;
+
+    // Battery
+    if (battery_pct_ >= 0.0f) {
+        snprintf(buf, sizeof(buf), "Batt  %4.2fV %3.0f%%",
+                 (double)battery_v_, (double)battery_pct_);
+    } else {
+        snprintf(buf, sizeof(buf), "Batt   --  N/A");
     }
     u8g2_.drawStr(0, y, buf);
 }
@@ -325,9 +336,27 @@ void Display::drawHeader() {
         u8g2_.drawStr(0, 8, "LIVE");
     }
 
-    // WiFi indicator
+    // Battery icon (rightmost in header)
+    // Draws at x=115: 12px wide battery outline + fill
+    if (battery_pct_ >= 0.0f) {
+        constexpr int bx = 115, by = 1;  // top-left of battery body
+        constexpr int bw = 10, bh = 6;   // body size
+        // Body outline
+        u8g2_.drawFrame(bx, by, bw, bh);
+        // Positive terminal nub
+        u8g2_.drawBox(bx + bw, by + 2, 2, 2);
+        // Fill level (1px inset)
+        int fill = (int)(battery_pct_ * (float)(bw - 2) / 100.0f);
+        if (fill < 0) fill = 0;
+        if (fill > bw - 2) fill = bw - 2;
+        if (fill > 0) {
+            u8g2_.drawBox(bx + 1, by + 1, fill, bh - 2);
+        }
+    }
+
+    // WiFi indicator (shifted left to make room for battery)
     if (wifi_active_) {
-        u8g2_.drawStr(104, 8, "WiFi");
+        u8g2_.drawStr(90, 8, "WiFi");
     }
 }
 

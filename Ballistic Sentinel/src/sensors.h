@@ -10,6 +10,8 @@ struct SensorData {
     float humidity_pct   = 0.0f;     // %
     float heading_deg    = 0.0f;     // compass heading 0–360
     float cant_deg       = 0.0f;     // rifle cant (roll from MPU6050)
+    float battery_pct    = -1.0f;    // battery 0–100 (−1 = not available)
+    float battery_v      = 0.0f;     // raw battery voltage
     bool  bme_ok         = false;
     bool  compass_ok     = false;
     bool  mpu_ok         = false;
@@ -41,6 +43,9 @@ public:
 
     /// Read BME280 + compass (slow environmental sensors).
     void updateEnvironment();
+
+    /// Read battery voltage via ADC.
+    void updateBattery();
 
     /// Returns true if significant motion was detected since last call.
     bool motionDetected();

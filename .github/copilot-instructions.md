@@ -56,8 +56,8 @@ When guidelines conflict, resolve them in this order:
 
 ## Documentation & Versioning
 
-- **README Updates**: Edit the appropriate `README.md` whenever significant functionality changes or new features are added.
-- **Changelog**: Summarize changes in `CHANGELOG.md` using [Keep a Changelog](https://keepachangelog.com/) format.
+- **README Updates**: You must update the relevant `README.md` whenever significant functionality changes. Do not wait to be asked.
+- **Changelog**: You must add an entry to `CHANGELOG.md` for every change, using the [Keep a Changelog](https://keepachangelog.com/) format.
 - **Versioning**: Follow [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`). Increment the API version when making breaking changes.
 - **API Documentation**: Ensure all endpoints are documented with request/response schemas and example payloads. Code must be compatible with auto-generation tools (e.g., ApiFairy, Swagger/OpenAPI).
 - **Inline Comments**: Explain *why* complex logic exists, not just *what* it does. Avoid restating the code in English.

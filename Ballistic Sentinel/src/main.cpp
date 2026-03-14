@@ -40,6 +40,7 @@ volatile bool g_config_changed = false;
 static uint32_t s_last_env_sensor  = 0;
 static uint32_t s_last_cant_sensor = 0;
 static uint32_t s_last_display     = 0;
+static uint32_t s_last_batt_read   = 0;
 
 // Activity tracking for auto-sleep
 static uint32_t s_last_activity    = 0;
@@ -103,6 +104,8 @@ static void updateDisplay() {
     }
 
     g_display.setWifiActive(g_web.isActive());
+    g_display.setBattery(g_sensors.data().battery_pct,
+                          g_sensors.data().battery_v);
     g_display.update();
 }
 
@@ -263,6 +266,13 @@ void loop() {
     if (now - s_last_env_sensor >= cfg::ENV_SENSOR_INTERVAL_MS) {
         s_last_env_sensor = now;
         g_sensors.updateEnvironment();
+        s_display_dirty = true;
+    }
+
+    // ── Battery voltage (every 10 s) ──────────────────────────────────
+    if (now - s_last_batt_read >= cfg::BATT_READ_INTERVAL_MS) {
+        s_last_batt_read = now;
+        g_sensors.updateBattery();
         s_display_dirty = true;
     }
 
