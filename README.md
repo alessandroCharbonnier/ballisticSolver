@@ -2,7 +2,7 @@
 
 A live ballistic calculator for long-range shooting, built on the ESP32-WROOM-32 platform.
 The complete C++ ballistic engine is a from-scratch rewrite of [py_ballisticcalc](../bin/py_ballisticcalc),
-validated to within 0.25% of the Python reference across 8 scenarios and 173 trajectory points.
+validated to within 0.3% of the Python reference across 75 scenarios and 1578 trajectory points.
 
 ## Features
 
@@ -179,7 +179,7 @@ cd <project_root>
 python tests/test_compare.py
 ```
 
-Expected: **173/173 PASS** (8 scenarios × up to 31 points each)
+Expected: **1578/1578 PASS** (75 scenarios across 8 calibers, multiple bullets/conditions)
 
 ## Web Interface
 
@@ -225,20 +225,29 @@ correction unit selection (MOA, SMOA, MRAD, CM, CLICKS).
 | Advanced | 2 | Powder sensitivity, multi-BC |
 | Edge Cases | 2 | Zero-distance correction, very close range |
 
-### Python Comparison (173 points, 8 scenarios)
+### Python Comparison (1578 points, 75 scenarios)
 
-| Scenario | Drag | Range | Conditions |
-|----------|------|-------|------------|
-| 6.5 Creedmoor | G7 | 2000 yd | Standard atmosphere |
-| .308 Winchester | G7 | 1500 yd | 10 mph crosswind |
-| .338 Lapua Magnum | G7 | 2500 yd | Hot (100°F), humid |
-| .50 BMG | G1 | 2500 yd | Standard atmosphere |
-| 6mm Creedmoor | G7 | 1500 yd | Cold (20°F) |
-| .300 PRC | G7 | 2000 yd | High altitude (≈5000 ft) |
-| .308 Winchester | G1 | 1500 yd | G1 reference |
-| .375 CheyTac | G7 | 3000 yd | Extreme long range |
+| Category | Scenarios | Drag | Range | Notes |
+|----------|-----------|------|-------|-------|
+| .22 LR brands | 12 | RA4 | 300 yd | SK, Eley Tenex, Eley ELR, Lapua (Center-X, Midas+, LR, SLR, X-Act), RWS R50, CCI SV, Federal GMT |
+| .22 LR weather | 5 | RA4 | 300 yd | Hot, cold, altitude, tropical, desert |
+| .22 LR wind | 4 | RA4 | 300 yd | 5/10/15 mph cross, quartering |
+| .22 LR K22 combo | 1 | RA4 | 300 yd | Hot + crosswind (King of 22LR match day) |
+| 6.5 CM bullets | 6 | G7 | 1200 yd | Berger 140 HT, Sierra 140 SMK, Hornady 147 ELD-M + 3 handloads |
+| 6.5 CM conditions | 5 | G7 | 1200 yd | Wind, hot, cold, altitude, PRS combined |
+| 6mm CM bullets | 4 | G7 | 1200 yd | A-Tip 110, Berger 105 HT, Berger 115 DTAC handload, wind |
+| .308 Win bullets | 6 | G7 | 1200 yd | ELD-M 168/178, Berger 185 Jugg, 200gr handload, wind, hot |
+| .338 LM (K1M) | 5 | G7 | 1760 yd | ELD-M 285, Berger 300, CE 275, handload, K1M combo |
+| .300 PRC (K1M) | 3 | G7 | 1760 yd | A-Tip 250, Berger 230 handload, K1M combo |
+| .375 CT (K2M) | 4 | G7 | 3520 yd | 350gr, CE 377, handload, K2M alt+wind |
+| .50 BMG (ELR) | 3 | G1 | 2500–3520 yd | Wind, altitude, K2M range |
+| Extreme weather | 4 | G7 | 1200–1760 yd | Desert 110°F, mountain 8500 ft, tropical, 7500 ft |
+| Wind angles | 5 | G7 | 1200 yd | Head/tail/quartering 45°/135°, 20 mph gust |
+| Original baseline | 8 | G1/G7 | 1500–3000 yd | Original 8 scenarios retained |
 
-Tolerance: max(0.5"/500yd × distance, 0.25% of absolute value)
+**Competition distances**: King of 22LR (300 yd), PRS (1200 yd), King of 1 Mile (1760 yd), King of 2 Miles (3520 yd)
+
+Tolerance: max(0.65"/500yd × distance, 0.3% of absolute value)
 
 ## Version History
 
@@ -247,6 +256,7 @@ Tolerance: max(0.5"/500yd × distance, 0.25% of absolute value)
 | 1.0.0 | 2025-01-XX | Initial release — complete C++ ballistic engine, ESP32 firmware, web UI, 37 native tests, 173-point Python comparison |
 | 1.1.0 | 2026-03-13 | Power optimization: event-driven ballistic calc, BME280 forced mode, compass 10 Hz ODR, display 4 fps, split sensor intervals (cant 5 Hz / env 0.5 Hz), ESP32 light sleep, WiFi modem sleep, auto-dim (2 min / 80%), accelerometer-based auto deep-sleep (10 min / 0.43g threshold). Bug fixes: deep-sleep GPIO wakeup loop, wake-from-sleep phantom button press, display inversion persisting on shutdown/wake screens |
 | 1.2.0 | 2026-03-13 | New Digital Level mode with full-screen cant readout, graphical bubble level, sensitivity zone marks, "LEVEL" indicator with display inversion, and directional tilt hints. Scrolling main menu with up/down arrow indicators (supports 5+ items without shrinking text). WiFi toggle moved to last menu position |
+| 1.3.0 | 2026-03-14 | Expanded comparison test suite: 75 scenarios / 1578 trajectory points (up from 8 / 173). Added .22 LR competition bullets (12 brands, RA4 drag table), centerfire competition & handloaded profiles across 6.5 CM, 6mm CM, .308 Win, .338 LM, .300 PRC, .375 CT, .50 BMG. Weather matrix (hot/cold/altitude/tropical/desert/mountain), wind angles (head/tail/quartering/gust), and competition distance ranges (King of 22LR, PRS, King of 1 Mile, King of 2 Miles) |
 
 ## License
 
