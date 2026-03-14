@@ -27,6 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Combined condition scenarios simulating real match days (altitude + wind + temperature)
 
 ### Changed
+- **Refactored C++ multi-BC drag model** (`buildMultiBCSpline` in `drag_model.h`):
+  replaced average-BC normalization with per-Mach form-factor folding (matching
+  Python's `DragModelMultiBC`).  At runtime `drag(m) = Cd_ref(m) / BC(m)` —
+  exact per-Mach BC instead of an averaged approximation.  Eliminates the
+  previous 7-15 fps velocity divergence; multi-BC scenarios now pass at the
+  same tight tolerances as single-BC.
+- Removed multi-BC tolerance multiplier from test harness; all 1850 points use
+  uniform tolerances (drop 0.65", velocity 5 fps, energy 2%).
 - `run_cpp_binary()` now uses per-scenario step sizes instead of hardcoded 100 yd snap, supporting 25 yd (`.22 LR`), 50 yd (`PRS`), and 100 yd step intervals
 - Increased C++ binary execution timeout from 60s to 300s to accommodate 75 scenarios
 - Updated README trajectory point count from 173 to ~1500

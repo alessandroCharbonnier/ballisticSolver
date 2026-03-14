@@ -84,6 +84,11 @@ private:
     }
 
     /// Build a custom spline from multi-BC points by modifying the standard table.
+    ///
+    /// Approach: fold the per-Mach form factor directly into the drag table
+    /// so that at runtime the constant `bc = sectional_density` divides it out.
+    /// This gives exact per-Mach BC: drag(m) = Cd_ref(m) * ff(m) / SD
+    ///                                        = Cd_ref(m) / BC(m)
     void buildMultiBCSpline(const BCPoint* pts, size_t num_pts,
                             double mach_sea_level_fps)
     {
@@ -91,46 +96,59 @@ private:
         const DragPoint* table = getDragTable(table_id, table_size);
         if (!table || table_size == 0 || num_pts == 0) return;
 
-        // Convert BC points to (Mach, form_factor) pairs
+        double sd = weight_gr / (diameter_in * diameter_in * kGrainsPerPound);
+        if (sd <= 0.0) return;
+
+        // Convert BC points to (Mach, BC/SD ratio) pairs — sorted by Mach
         std::vector<double> pt_mach(num_pts);
-        std::vector<double> pt_ff(num_pts);
+        std::vector<double> pt_ratio(num_pts);  // BC / SD (inverse form factor)
 
         for (size_t i = 0; i < num_pts; ++i) {
             pt_mach[i] = pts[i].velocity_fps / mach_sea_level_fps;
-            double sd = weight_gr / (diameter_in * diameter_in * kGrainsPerPound);
-            pt_ff[i] = sd / pts[i].bc;
+            pt_ratio[i] = pts[i].bc / sd;
         }
 
-        // Build modified drag table with interpolated form factors
+        // Simple insertion sort by Mach (few points, typically 2-5)
+        for (size_t i = 1; i < num_pts; ++i) {
+            double m = pt_mach[i];
+            double r = pt_ratio[i];
+            size_t j = i;
+            while (j > 0 && pt_mach[j - 1] > m) {
+                pt_mach[j] = pt_mach[j - 1];
+                pt_ratio[j] = pt_ratio[j - 1];
+                --j;
+            }
+            pt_mach[j] = m;
+            pt_ratio[j] = r;
+        }
+
+        // Build modified drag table: Cd_modified = Cd_ref / (BC/SD ratio)
+        // so that dragByMach = Cd_modified / SD = Cd_ref / BC_at_mach
         std::vector<DragPoint> modified(table_size);
         for (size_t i = 0; i < table_size; ++i) {
             double m = table[i].mach;
-            double ff;
+            double ratio;
 
-            // Find bounding BC points for this Mach
             if (m <= pt_mach[0]) {
-                ff = pt_ff[0];
+                ratio = pt_ratio[0];
             } else if (m >= pt_mach[num_pts - 1]) {
-                ff = pt_ff[num_pts - 1];
+                ratio = pt_ratio[num_pts - 1];
             } else {
-                // Linear interpolation between BC points
                 size_t j = 0;
                 while (j < num_pts - 1 && pt_mach[j + 1] < m) ++j;
                 double t = (m - pt_mach[j]) / (pt_mach[j + 1] - pt_mach[j]);
-                ff = pt_ff[j] + t * (pt_ff[j + 1] - pt_ff[j]);
+                ratio = pt_ratio[j] + t * (pt_ratio[j + 1] - pt_ratio[j]);
             }
 
             modified[i].mach = m;
-            modified[i].cd = table[i].cd * ff / form_factor;
+            modified[i].cd = table[i].cd / ratio;
         }
 
         spline.build(modified.data(), modified.size());
 
-        // Use average BC for the factor
-        double avg_bc = 0.0;
-        for (size_t i = 0; i < num_pts; ++i) avg_bc += pts[i].bc;
-        bc = avg_bc / num_pts;
-        computeDerived();
+        // Set bc = sectional density so dragByMach divides by SD
+        bc = sd;
+        computeDerived();  // form_factor = SD / SD = 1.0
     }
 };
 

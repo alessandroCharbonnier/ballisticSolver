@@ -646,12 +646,6 @@ def compare_rows(
     TOL_TIME_S      = 0.01    # seconds
     TOL_ENERGY_PCT  = 2.0     # percent
 
-    # Multi-BC scenarios use wider tolerances due to algorithmic differences:
-    # C++ normalizes by average BC at runtime, Python bakes per-Mach BC into
-    # the drag table.  Both are valid approaches but produce ~7-15 fps velocity
-    # divergence that compounds into drop differences at long range.
-    multi_bc_names = {s.name for s in MULTI_BC_SCENARIOS}
-
     all_keys = sorted(set(py_rows.keys()) | set(cpp_rows.keys()))
 
     for key in all_keys:
@@ -668,16 +662,13 @@ def compare_rows(
 
         errs = []
 
-        # Multi-BC scenarios get 3.5x tolerance due to normalization differences
-        tol_mult = 3.5 if scenario in multi_bc_names else 1.0
-
         # Scale tolerance with distance for drop/windage
         # At long range, absolute differences grow due to integration step alignment,
         # interpolation differences, and floating-point accumulation.
-        # Use max of linear-scaled absolute tolerance and 0.15% of absolute value.
+        # Use max of linear-scaled absolute tolerance and 0.3% of absolute value.
         dist_factor = max(1.0, dist / 500.0)
-        tol_drop = max(TOL_DROP_IN * dist_factor * tol_mult, abs(py.drop_in) * 0.003 * tol_mult)
-        tol_wind = max(TOL_WINDAGE_IN * dist_factor * tol_mult, abs(py.windage_in) * 0.0025 * tol_mult + 0.1)
+        tol_drop = max(TOL_DROP_IN * dist_factor, abs(py.drop_in) * 0.003)
+        tol_wind = max(TOL_WINDAGE_IN * dist_factor, abs(py.windage_in) * 0.0025 + 0.1)
 
         if abs(py.drop_in - cpp.drop_in) > tol_drop:
             errs.append(f"drop  py={py.drop_in:+.2f}  cpp={cpp.drop_in:+.2f}  "
@@ -687,18 +678,18 @@ def compare_rows(
             errs.append(f"wind  py={py.windage_in:+.2f}  cpp={cpp.windage_in:+.2f}  "
                         f"d={abs(py.windage_in-cpp.windage_in):.2f}  tol={tol_wind:.2f}")
 
-        if abs(py.vel_fps - cpp.vel_fps) > TOL_VEL_FPS * dist_factor * tol_mult:
+        if abs(py.vel_fps - cpp.vel_fps) > TOL_VEL_FPS * dist_factor:
             errs.append(f"vel   py={py.vel_fps:.1f}  cpp={cpp.vel_fps:.1f}")
 
-        if abs(py.mach - cpp.mach) > TOL_MACH * dist_factor * tol_mult:
+        if abs(py.mach - cpp.mach) > TOL_MACH * dist_factor:
             errs.append(f"mach  py={py.mach:.4f}  cpp={cpp.mach:.4f}")
 
-        if abs(py.time_s - cpp.time_s) > TOL_TIME_S * dist_factor * tol_mult:
+        if abs(py.time_s - cpp.time_s) > TOL_TIME_S * dist_factor:
             errs.append(f"time  py={py.time_s:.4f}  cpp={cpp.time_s:.4f}")
 
         if py.energy_ftlb > 0:
             pct = abs(py.energy_ftlb - cpp.energy_ftlb) / py.energy_ftlb * 100
-            if pct > TOL_ENERGY_PCT * dist_factor * tol_mult:
+            if pct > TOL_ENERGY_PCT * dist_factor:
                 errs.append(f"energy  py={py.energy_ftlb:.0f}  cpp={cpp.energy_ftlb:.0f}  "
                             f"({pct:.1f}%)")
 
