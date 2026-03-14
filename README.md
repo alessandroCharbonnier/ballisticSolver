@@ -269,6 +269,7 @@ Tolerance: max(0.65"/500yd × distance, 0.3% of absolute value)
 | Priority | Feature | Rationale |
 |----------|---------|-----------|
 | 1 | Multiple rifle/load profiles | Hobby shooters often own 3-10 rifles. Switching profiles must be trivial. |
+| 2 | timer in live / staged | pressing on timer icon will start the countdown, can be configured in device or via webapp |
 | 2 | GPS integration (phone → device) | Auto-populate latitude, altitude, and azimuth. Removes manual entry errors for Coriolis. |
 | 3 | Wind sensor activation (Calypso or Kestrel link) | Measured wind >> guessed wind. Finish the Calypso UART or add Kestrel BLE link. |
 | 4 | Azimuth-aware wind decomposition | Show headwind/crosswind components relative to shot direction, not just raw wind angle. Helps shooters visualize the actual correction. |
