@@ -6,6 +6,7 @@
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <driver/adc.h>
+#include <esp_adc_cal.h>
 #include <cmath>
 
 // ── QMC5883P register definitions ─────────────────────────────────────────
@@ -107,6 +108,7 @@ static float headingSmooth(float deg) {
 // Module-level instances (hidden from header)
 static Adafruit_BME280  s_bme;
 static Adafruit_MPU6050 s_mpu;
+static esp_adc_cal_characteristics_t s_adc_chars;
 
 void Sensors::begin() {
     // BME280
@@ -144,6 +146,14 @@ void Sensors::begin() {
     // Battery ADC (GPIO36 / VP — ADC1_CH0)
     adc1_config_width(ADC_WIDTH_BIT_12);
     adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_11);
+    esp_adc_cal_value_t cal_type = esp_adc_cal_characterize(
+        ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12,
+        1100,  // default Vref (overridden by eFuse if available)
+        &s_adc_chars);
+    Serial.printf("[sensors] ADC cal type: %s\n",
+        cal_type == ESP_ADC_CAL_VAL_EFUSE_VREF  ? "eFuse Vref" :
+        cal_type == ESP_ADC_CAL_VAL_EFUSE_TP    ? "eFuse Two Point" :
+                                                  "Default Vref");
     updateBattery();  // take an initial reading
 }
 
@@ -245,11 +255,11 @@ void Sensors::updateBattery() {
     for (uint8_t i = 0; i < cfg::BATT_AVG_SAMPLES; ++i) {
         sum += adc1_get_raw(ADC1_CHANNEL_0);
     }
-    float raw_avg = (float)sum / (float)cfg::BATT_AVG_SAMPLES;
+    uint32_t raw_avg = sum / cfg::BATT_AVG_SAMPLES;
 
-    // ESP32 ADC1 @ 11dB attenuation: ~0–3.3V mapped to 0–4095
-    float adc_v = raw_avg * 3.3f / 4095.0f;
-    float batt_v = adc_v * cfg::BATT_DIVIDER_RATIO;
+    // Use factory-calibrated conversion (eFuse Vref or Two Point)
+    uint32_t mv = esp_adc_cal_raw_to_voltage(raw_avg, &s_adc_chars);
+    float batt_v = (float)mv / 1000.0f * cfg::BATT_DIVIDER_RATIO;
 
     data_.battery_v = batt_v;
 
