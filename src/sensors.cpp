@@ -52,22 +52,31 @@ namespace qmc5883p {
         return true;
     }
 
-    /// Read heading in degrees 0–360.  Returns -1 if not ready or read fails.
-    static float readHeading() {
-        // Check data-ready bit before reading
-        if (!(readReg(REG_STATUS) & 0x01)) return -1.0f;
+    /// Read raw X/Y/Z from the magnetometer.  Returns false if not ready.
+    static bool readRawXY(float& x_out, float& y_out) {
+        if (!(readReg(REG_STATUS) & 0x01)) return false;
 
         Wire.beginTransmission(cfg::I2C_ADDR_QMC5883P);
         Wire.write(REG_DATA);
         Wire.endTransmission(false);
-        if (Wire.requestFrom(cfg::I2C_ADDR_QMC5883P, (uint8_t)6) != 6) return -1.0f;
+        if (Wire.requestFrom(cfg::I2C_ADDR_QMC5883P, (uint8_t)6) != 6) return false;
 
         int16_t x = (int16_t)(Wire.read() | (Wire.read() << 8));
         int16_t y = (int16_t)(Wire.read() | (Wire.read() << 8));
-        // z bytes consumed but unused for 2D heading
-        Wire.read(); Wire.read();
+        Wire.read(); Wire.read();  // Z bytes consumed but unused
 
-        float heading = atan2f((float)y, (float)x) * 180.0f / (float)M_PI;
+        x_out = (float)x;
+        y_out = (float)y;
+        return true;
+    }
+
+    /// Compute heading from calibrated X/Y values.
+    static float headingFromCalibratedXY(float raw_x, float raw_y,
+                                          float off_x, float off_y,
+                                          float scl_x, float scl_y) {
+        float cx = (raw_x - off_x) * scl_x;
+        float cy = (raw_y - off_y) * scl_y;
+        float heading = atan2f(cy, cx) * 180.0f / (float)M_PI;
         if (heading < 0.0f) heading += 360.0f;
         return heading;
     }
@@ -174,11 +183,20 @@ void Sensors::updateEnvironment() {
         data_.pressure_inhg = press_hpa * 0.02953f;        // hPa → inHg
         data_.humidity_pct  = humidity;
     }
+}
 
-    // ── QMC5883P compass ──────────────────────────────────────────────────
+void Sensors::updateCompass() {
+    // ── QMC5883P compass (fast I2C read, safe to call at 5–10 Hz) ─────────
     if (data_.compass_ok) {
-        float h = qmc5883p::readHeading();
-        if (h >= 0.0f) data_.heading_deg = headingSmooth(h);
+        float rx, ry;
+        if (qmc5883p::readRawXY(rx, ry)) {
+            if (mag_cal_active_) {
+                compassCalibrationTick_(rx, ry);
+            }
+            float h = qmc5883p::headingFromCalibratedXY(
+                rx, ry, mag_off_x_, mag_off_y_, mag_scl_x_, mag_scl_y_);
+            data_.heading_deg = headingSmooth(h);
+        }
     }
 }
 
@@ -247,6 +265,72 @@ bool Sensors::cantCalibrationDone() {
         return true;
     }
     return false;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Compass (magnetometer) calibration
+// ═══════════════════════════════════════════════════════════════════════════
+
+void Sensors::startCompassCalibration() {
+    mag_cal_active_  = true;
+    mag_cal_done_    = false;
+    mag_cal_samples_ = 0;
+    mag_min_x_ =  1e9f;
+    mag_max_x_ = -1e9f;
+    mag_min_y_ =  1e9f;
+    mag_max_y_ = -1e9f;
+    Serial.println("[sensors] Compass calibration started — rotate 360°");
+}
+
+void Sensors::compassCalibrationTick_(float rx, float ry) {
+    if (rx < mag_min_x_) mag_min_x_ = rx;
+    if (rx > mag_max_x_) mag_max_x_ = rx;
+    if (ry < mag_min_y_) mag_min_y_ = ry;
+    if (ry > mag_max_y_) mag_max_y_ = ry;
+    mag_cal_samples_++;
+}
+
+void Sensors::finishCompassCalibration() {
+    mag_cal_active_ = false;
+
+    // Hard iron offsets: center of min/max envelope
+    mag_off_x_ = (mag_min_x_ + mag_max_x_) / 2.0f;
+    mag_off_y_ = (mag_min_y_ + mag_max_y_) / 2.0f;
+
+    // Soft iron scale: normalize to the average radius
+    float range_x = (mag_max_x_ - mag_min_x_) / 2.0f;
+    float range_y = (mag_max_y_ - mag_min_y_) / 2.0f;
+    float avg_range = (range_x + range_y) / 2.0f;
+
+    if (range_x > 1.0f && range_y > 1.0f) {
+        mag_scl_x_ = avg_range / range_x;
+        mag_scl_y_ = avg_range / range_y;
+    } else {
+        mag_scl_x_ = 1.0f;
+        mag_scl_y_ = 1.0f;
+    }
+
+    mag_cal_done_ = true;
+    Serial.printf("[sensors] Compass calibrated: off=(%.1f, %.1f) scl=(%.3f, %.3f) samples=%u\n",
+                  (double)mag_off_x_, (double)mag_off_y_,
+                  (double)mag_scl_x_, (double)mag_scl_y_,
+                  mag_cal_samples_);
+}
+
+bool Sensors::compassCalibrationDone() {
+    if (mag_cal_done_) {
+        mag_cal_done_ = false;
+        return true;
+    }
+    return false;
+}
+
+void Sensors::setCompassCalibration(float off_x, float off_y,
+                                     float scl_x, float scl_y) {
+    mag_off_x_ = off_x;
+    mag_off_y_ = off_y;
+    mag_scl_x_ = scl_x;
+    mag_scl_y_ = scl_y;
 }
 
 void Sensors::updateBattery() {

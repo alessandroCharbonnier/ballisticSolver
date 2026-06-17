@@ -75,6 +75,7 @@ static void updateDisplay() {
         const auto& wd = g_wind.data();
         g_display.setSensors(sd.temperature_f, sd.pressure_inhg, sd.humidity_pct);
         g_display.setHeading(sd.heading_deg);
+        g_display.setCompassCalibrating(g_sensors.compassCalibrating());
         g_display.setCant(sd.cant_deg);
         g_display.setCantCalibration(g_rifle.cant_offset,
                                       g_rifle.cant_sensitivity);
@@ -136,6 +137,16 @@ void setup() {
 
     // Init ballistic engine with loaded config
     g_modes.begin(g_rifle, g_stages);
+
+    // Load compass calibration into sensor driver
+    if (g_rifle.mag_calibrated) {
+        g_sensors.setCompassCalibration(
+            g_rifle.mag_offset_x, g_rifle.mag_offset_y,
+            g_rifle.mag_scale_x,  g_rifle.mag_scale_y);
+        Serial.printf("[main] Compass cal loaded: off=(%.1f,%.1f) scl=(%.3f,%.3f)\n",
+                      (double)g_rifle.mag_offset_x, (double)g_rifle.mag_offset_y,
+                      (double)g_rifle.mag_scale_x,  (double)g_rifle.mag_scale_y);
+    }
 
     // Initial sensor read + computation
     g_sensors.update();
@@ -261,10 +272,33 @@ void loop() {
                       (double)g_rifle.cant_offset);
     }
 
-    // ── MPU6050 cant read (5 Hz — fast for live level indicator) ──────────
+    // ── Compass calibration start/finish (from sensor view) ──────────────
+    if (g_modes.compassCalibRequested() && !g_sensors.compassCalibrating()) {
+        g_sensors.startCompassCalibration();
+        g_modes.setCompassCalActive(true);
+        s_display_dirty = true;
+    }
+    if (g_modes.compassCalibFinishRequested() && g_sensors.compassCalibrating()) {
+        g_sensors.finishCompassCalibration();
+        g_modes.setCompassCalActive(false);
+        s_display_dirty = true;
+    }
+    if (g_sensors.compassCalibrationDone()) {
+        g_rifle.mag_offset_x   = g_sensors.magOffsetX();
+        g_rifle.mag_offset_y   = g_sensors.magOffsetY();
+        g_rifle.mag_scale_x    = g_sensors.magScaleX();
+        g_rifle.mag_scale_y    = g_sensors.magScaleY();
+        g_rifle.mag_calibrated = true;
+        g_storage.save(g_rifle, g_stages);
+        s_display_dirty = true;
+        Serial.printf("[main] Compass calibrated & saved\n");
+    }
+
+    // ── MPU6050 cant + compass read (5 Hz — fast for live indicators) ────
     if (now - s_last_cant_sensor >= cfg::CANT_SENSOR_INTERVAL_MS) {
         s_last_cant_sensor = now;
         g_sensors.updateCant();
+        g_sensors.updateCompass();
         s_display_dirty = true;
     }
 

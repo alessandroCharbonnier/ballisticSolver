@@ -46,6 +46,13 @@ struct RifleConfig {
     float    cant_offset       = 0.0f;  // calibration zero offset (degrees)
     float    cant_sensitivity  = 1.0f;  // threshold to signal "level" (degrees)
 
+    // Compass (magnetometer) calibration
+    float    mag_offset_x      = 0.0f;  // hard iron offset X
+    float    mag_offset_y      = 0.0f;  // hard iron offset Y
+    float    mag_scale_x       = 1.0f;  // soft iron scale X
+    float    mag_scale_y       = 1.0f;  // soft iron scale Y
+    bool     mag_calibrated    = false;  // true once calibration has been run
+
     // Per-unit display preferences (0 = imperial, 1 = metric)
     uint8_t  unit_distance     = 0;   // 0=yd, 1=m
     uint8_t  unit_velocity     = 0;   // 0=fps, 1=m/s

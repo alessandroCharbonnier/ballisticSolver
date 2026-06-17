@@ -44,6 +44,7 @@ public:
                        ballistic::CorrectionUnit unit);
     void setSensors(float temp_f, float press_inhg, float humidity_pct);
     void setHeading(float heading_deg);
+    void setCompassCalibrating(bool active);
     void setWind(float speed_mph, float angle_deg, bool available);
     void setUnitDistance(uint8_t u);
     void setUnitTemperature(uint8_t u);
@@ -95,6 +96,7 @@ private:
     uint8_t  unit_distance_    = 0;
     uint8_t  unit_temperature_ = 0;
     uint8_t  unit_pressure_    = 0;
+    bool     compass_cal_     = false;  // compass calibration in progress
 
     void drawHeader();
     void drawDistance();

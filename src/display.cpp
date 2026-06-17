@@ -114,6 +114,7 @@ void Display::setCantCalibration(float offset, float sensitivity) {
 }
 
 void Display::setHeading(float h) { heading_deg_ = h; }
+void Display::setCompassCalibrating(bool active) { compass_cal_ = active; }
 void Display::setWind(float s, float a, bool ok) {
     wind_speed_mph_ = s; wind_angle_deg_ = a; wind_ok_ = ok;
 }
@@ -244,7 +245,11 @@ void Display::drawSensorView() {
     u8g2_.drawStr(0, y, buf); y += dy;
 
     // Heading
-    snprintf(buf, sizeof(buf), "Head   %5.1f deg", (double)heading_deg_);
+    if (compass_cal_) {
+        snprintf(buf, sizeof(buf), "Head  CALIBRATING");
+    } else {
+        snprintf(buf, sizeof(buf), "Head   %5.1f deg", (double)heading_deg_);
+    }
     u8g2_.drawStr(0, y, buf); y += dy;
 
     // Cant

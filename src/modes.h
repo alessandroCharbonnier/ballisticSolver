@@ -54,11 +54,23 @@ public:
     /// Returns true if config was reloaded (dirty flag, cleared on read).
     bool         configChanged();
 
+    /// True once if compass calibration start was requested.
+    bool         compassCalibRequested();
+
+    /// True once if compass calibration finish was requested.
+    bool         compassCalibFinishRequested();
+
+    /// Tell ModeManager whether compass cal is currently active.
+    void         setCompassCalActive(bool active) { compass_cal_active_ = active; }
+
 private:
     AppState app_state_   = AppState::MAIN_MENU;
     uint8_t  menu_cursor_ = 0;
     bool     wifi_on_     = false;
     bool     wifi_toggled_ = false;
+    bool     compass_cal_start_   = false;
+    bool     compass_cal_finish_  = false;
+    bool     compass_cal_active_  = false;  // mirrors sensor state
 
     // Live mode
     uint16_t live_distance_ = 100;

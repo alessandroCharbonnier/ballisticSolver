@@ -162,6 +162,14 @@ void ModeManager::handleSensorButton(ButtonState btn) {
     if (btn.id == ButtonId::CENTER && btn.event == ButtonEvent::DOUBLE_PRESS) {
         app_state_ = AppState::MAIN_MENU;
     }
+    // Single-press CENTER → start or finish compass calibration
+    else if (btn.id == ButtonId::CENTER && btn.event == ButtonEvent::PRESS) {
+        if (!compass_cal_active_) {
+            compass_cal_start_ = true;
+        } else {
+            compass_cal_finish_ = true;
+        }
+    }
 }
 
 void ModeManager::handleDigitalLevelButton(ButtonState btn) {
@@ -273,6 +281,18 @@ bool ModeManager::configChanged() {
     bool c = config_dirty_;
     config_dirty_ = false;
     return c;
+}
+
+bool ModeManager::compassCalibRequested() {
+    bool r = compass_cal_start_;
+    compass_cal_start_ = false;
+    return r;
+}
+
+bool ModeManager::compassCalibFinishRequested() {
+    bool r = compass_cal_finish_;
+    compass_cal_finish_ = false;
+    return r;
 }
 
 uint16_t ModeManager::displayDistance() const {

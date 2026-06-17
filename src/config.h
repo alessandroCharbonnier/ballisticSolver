@@ -89,7 +89,7 @@ constexpr uint8_t DISPLAY_HEIGHT   = 64;
 // ---------------------------------------------------------------------------
 constexpr uint16_t DISPLAY_FPS        = 4;      // display refresh rate
 constexpr uint16_t ENV_SENSOR_INTERVAL_MS  = 2000;  // BME280 + compass (0.5 Hz)
-constexpr uint16_t CANT_SENSOR_INTERVAL_MS = 200;   // MPU6050 cant only (5 Hz)
+constexpr uint16_t CANT_SENSOR_INTERVAL_MS = 500;   // MPU6050 cant + compass (2 Hz)
 constexpr uint8_t  CANT_CALIB_SAMPLES = 20;   // samples to average for cant calibration
 
 // ---------------------------------------------------------------------------

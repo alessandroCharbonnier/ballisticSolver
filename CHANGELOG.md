@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Magnetometer (compass) calibration** — hard iron offset and soft iron scale correction for QMC5883P. Calibration is triggered from the Sensor View screen: press CENTER to start, rotate the device 360° on a flat surface, press CENTER again to finish. Calibration values (offset X/Y, scale X/Y) are persisted in NVS and reloaded on boot. Fixes incorrect heading readings and non-linear rotation caused by nearby electronics (ESP32, OLED, wires).
+
 ### Fixed
 - **WiFi cycling crash** — replaced `WiFi.mode(WIFI_OFF)` with `esp_wifi_stop()` in `WebServer_::stop()` to preserve the ESP32 netif layer. `WiFi.mode(WIFI_OFF)` destroys the default AP netif but doesn't fully deregister the netstack callback, causing `netstack cb reg failed with 12308` (`ESP_ERR_INVALID_STATE`) on the next `WiFi.mode(WIFI_AP)`.
 - **Web UI `/api/wifi/off` state desync** — `handleWifiOff` now sets a pending flag instead of directly calling `WiFi.softAPdisconnect()`/`WiFi.mode(WIFI_OFF)` from the async handler. Shutdown is deferred to `processDNS()` on the main loop, which calls `stop()` properly. This prevents `active_` from staying stale and avoids blocking `delay()` inside the async web server task.
