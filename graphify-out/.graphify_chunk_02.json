@@ -1,0 +1,150 @@
+[
+  {
+    "id": "bin_py_ballisticcalc_shot_Shot",
+    "type": "class",
+    "at": "bin/py_ballisticcalc/shot.py",
+    "props": {
+      "desc": "Container aggregating ammo, weapon, atmosphere, winds, and shooting geometry (look/cant/azimuth) to compute barrel elevation/azimuth."
+    }
+  },
+  {
+    "id": "bin_py_ballisticcalc_shot_ShotProps",
+    "type": "class",
+    "at": "bin/py_ballisticcalc/shot.py",
+    "props": {
+      "desc": "Translates Shot into engine-ready internal scalars (feet/sec/grains) with precomputed interpolation spline for drag curves."
+    }
+  },
+  {
+    "id": "bin_py_ballisticcalc_trajectory_data_TrajFlag",
+    "type": "class",
+    "at": "bin/py_ballisticcalc/trajectory_data.py",
+    "props": {
+      "desc": "Bitmask for ballistic points of interest (ZERO, MACH, APEX, MRT)."
+    }
+  },
+  {
+    "id": "bin_py_ballisticcalc_trajectory_data_HitResult",
+    "type": "class",
+    "at": "bin/py_ballisticcalc/trajectory_data.py",
+    "props": {
+      "desc": "Complete trajectory results including integration points and metadata."
+    }
+  },
+  {
+    "id": "lib_ballistic_atmosphere_Atmosphere",
+    "type": "struct",
+    "at": "lib/ballistic/atmosphere.h",
+    "props": {
+      "desc": "CIPM-2007 atmospheric density model with lapse-rate based altitude correction."
+    }
+  },
+  {
+    "id": "lib_ballistic_drag_model_DragModel",
+    "type": "struct",
+    "at": "lib/ballistic/drag_model.h",
+    "props": {
+      "desc": "Combines BC, drag tables, and physical properties; supports multi-BC form factor interpolation into a custom spline."
+    }
+  },
+  {
+    "id": "lib_ballistic_engine_rk4_EngineRK4",
+    "type": "class",
+    "at": "lib/ballistic/engine_rk4.h",
+    "props": {
+      "desc": "4th-order Runge-Kutta integrator with adaptive Dormand-Prince step control and iterative zero finder."
+    }
+  },
+  {
+    "id": "src_display_Display",
+    "type": "class",
+    "at": "src/display.cpp",
+    "props": {
+      "desc": "UI state machine for SSD1306/U8g2 display; handles live shooting HUD, digital level with inversion logic, and sensor dashboards."
+    }
+  },
+  {
+    "edge": [
+      "bin_py_ballisticcalc_shot_ShotProps",
+      "bin_py_ballisticcalc_shot_Shot"
+    ],
+    "type": "EXTRACTED",
+    "label": "converts_from",
+    "props": {
+      "confidence": 1.0,
+      "desc": "ShotProps.from_shot(shot) performs unit conversion and spline precalculation."
+    }
+  },
+  {
+    "edge": [
+      "lib_ballistic_engine_rk4_EngineRK4",
+      "lib_ballistic_drag_model_DragModel"
+    ],
+    "type": "EXTRACTED",
+    "label": "uses_for_deceleration",
+    "props": {
+      "confidence": 1.0,
+      "desc": "RK4 solver calls DragModel::dragByMach() in the inner acceleration loop."
+    }
+  },
+  {
+    "edge": [
+      "lib_ballistic_calculator_Calculator",
+      "lib_ballistic_engine_rk4_EngineRK4"
+    ],
+    "type": "EXTRACTED",
+    "label": "owns_engine",
+    "props": {
+      "confidence": 1.0,
+      "desc": "Calculator class encapsulates EngineRK4 for solving and correction queries."
+    }
+  },
+  {
+    "edge": [
+      "src_display_Display",
+      "lib_ballistic_calculator_Calculator"
+    ],
+    "type": "INFERRED",
+    "label": "visualizes_results_of",
+    "props": {
+      "confidence": 0.9,
+      "desc": "Display::setCorrection takes ballistic::CorrectionResult which is the output of Calculator."
+    }
+  },
+  {
+    "edge": [
+      "bin_py_ballisticcalc_visualize_plotting",
+      "bin_py_ballisticcalc_trajectory_data_HitResult"
+    ],
+    "type": "EXTRACTED",
+    "label": "visualizes",
+    "props": {
+      "confidence": 1.0,
+      "desc": "Python visualizer modules consume HitResult for matplotlib plotting and pandas export."
+    }
+  },
+  {
+    "edge": [
+      "lib_ballistic_atmosphere_AtmoPrecomp",
+      "lib_ballistic_atmosphere_Atmosphere"
+    ],
+    "type": "EXTRACTED",
+    "label": "optimizes",
+    "props": {
+      "confidence": 1.0,
+      "desc": "AtmoPrecomp uses polynomial barometric formula to eliminate pow() calls during trajectory integration."
+    }
+  },
+  {
+    "edge": [
+      "lib_ballistic_engine_rk4_EngineRK4",
+      "lib_ballistic_vector3d_Vector3f"
+    ],
+    "type": "EXTRACTED",
+    "label": "optimizes_with",
+    "props": {
+      "confidence": 1.0,
+      "desc": "Uses float Vector3f for inner-loop FPU acceleration on ESP32 while keeping position in double."
+    }
+  }
+]

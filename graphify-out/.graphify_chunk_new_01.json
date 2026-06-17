@@ -1,0 +1,198 @@
+{
+  "nodes": [
+    {
+      "id": "ballisticcalc_project",
+      "type": "project",
+      "name": "Ballistic Sentinel",
+      "description": "Live ballistic calculator for long-range shooting built on ESP32.",
+      "confidence_score": 1.0
+    },
+    {
+      "id": "py_ballisticcalc_library",
+      "type": "library",
+      "name": "py_ballisticcalc",
+      "description": "Python ballistic trajectory calculator library used as a reference for the C++ engine.",
+      "confidence_score": 1.0
+    },
+    {
+      "id": "esp32_platform",
+      "type": "platform",
+      "name": "ESP32-WROOM-32",
+      "description": "Microcontroller platform with hardware FPU for single-precision math.",
+      "confidence_score": 1.0
+    },
+    {
+      "id": "cpp_engine",
+      "type": "engine",
+      "name": "Pure C++ Ballistic Engine",
+      "description": "Header-only C++ library with adaptive RK45 integration and PCHIP interpolation.",
+      "confidence_score": 1.0
+    },
+    {
+      "id": "rk45_integrator",
+      "type": "algorithm",
+      "name": "RK45 Dormand-Prince",
+      "description": "Adaptive step-size integrator with embedded error estimation.",
+      "confidence_score": 1.0
+    },
+    {
+      "id": "cipm2007_model",
+      "type": "model",
+      "name": "CIPM-2007 Atmosphere Model",
+      "description": "Standard air density model used for ballistic calculations.",
+      "confidence_score": 1.0
+    },
+    {
+      "id": "pchip_interpolation",
+      "type": "method",
+      "name": "PCHIP Fritsch-Carlson Spline",
+      "description": "Monotonicity-preserving cubic spline interpolation for drag tables.",
+      "confidence_score": 1.0
+    },
+    {
+      "id": "magnetometer_calibration",
+      "type": "feature",
+      "name": "Magnetometer Calibration",
+      "description": "Hard iron offset and soft iron scale correction for QMC5883P sensor.",
+      "confidence_score": 1.0
+    },
+    {
+      "id": "multi_bc_support",
+      "type": "feature",
+      "name": "Multi-BC Support",
+      "description": "Ability to handle velocity-stepped ballistic coefficients.",
+      "confidence_score": 1.0
+    },
+    {
+      "id": "powder_sensitivity",
+      "type": "feature",
+      "name": "Powder Sensitivity",
+      "description": "Adjustment of muzzle velocity based on powder temperature.",
+      "confidence_score": 1.0
+    },
+    {
+      "id": "optimization_float_inner_loop",
+      "type": "optimization",
+      "name": "Float Inner Loop",
+      "description": "Uses single-precision float for vector math to leverage ESP32 hardware FPU.",
+      "confidence_score": 1.0
+    },
+    {
+      "id": "sensor_bme280",
+      "type": "sensor",
+      "name": "BME280",
+      "description": "Environment sensor for temperature, pressure, and humidity.",
+      "confidence_score": 1.0
+    },
+    {
+      "id": "sensor_qmc5883p",
+      "type": "sensor",
+      "name": "QMC5883P",
+      "description": "Compass/magnetometer for heading detection.",
+      "confidence_score": 1.0
+    },
+    {
+      "id": "sensor_mpu6050",
+      "type": "sensor",
+      "name": "MPU6050",
+      "description": "Accelerometer/gyroscope for cant and roll detection.",
+      "confidence_score": 1.0
+    },
+    {
+      "id": "web_ui",
+      "type": "component",
+      "name": "Dark-Themed Web UI",
+      "description": "Captive portal based configuration interface for rifle and stage settings.",
+      "confidence_score": 1.0
+    }
+  ],
+  "edges": [
+    {
+      "source": "ballisticcalc_project",
+      "target": "cpp_engine",
+      "type": "contains",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "cpp_engine",
+      "target": "py_ballisticcalc_library",
+      "type": "derived_from",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "cpp_engine",
+      "target": "rk45_integrator",
+      "type": "implements",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "cpp_engine",
+      "target": "cipm2007_model",
+      "type": "implements",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "cpp_engine",
+      "target": "pchip_interpolation",
+      "type": "implements",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "cpp_engine",
+      "target": "multi_bc_support",
+      "type": "supports",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "cpp_engine",
+      "target": "powder_sensitivity",
+      "type": "supports",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "cpp_engine",
+      "target": "optimization_float_inner_loop",
+      "type": "optimizes_for",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "optimization_float_inner_loop",
+      "target": "esp32_platform",
+      "type": "targets",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "ballisticcalc_project",
+      "target": "sensor_bme280",
+      "type": "uses_hardware",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "ballisticcalc_project",
+      "target": "sensor_qmc5883p",
+      "type": "uses_hardware",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "ballisticcalc_project",
+      "target": "sensor_mpu6050",
+      "type": "uses_hardware",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "sensor_qmc5883p",
+      "target": "magnetometer_calibration",
+      "type": "requires",
+      "confidence_score": 1.0
+    },
+    {
+      "source": "ballisticcalc_project",
+      "target": "web_ui",
+      "type": "provides_interface",
+      "confidence_score": 1.0
+    }
+  ],
+  "hyperedges": [],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

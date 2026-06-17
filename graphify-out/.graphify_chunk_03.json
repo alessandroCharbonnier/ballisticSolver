@@ -1,0 +1,225 @@
+{
+  "entities": [
+    {
+      "id": "src_main.cpp_MainLoop",
+      "type": "Entry Point",
+      "description": "Orchestrates initialization and periodic updates for all hardware and software subsystems.",
+      "metadata": {
+        "role": "Coordinator"
+      }
+    },
+    {
+      "id": "src_modes.h_ModeManager",
+      "type": "Class",
+      "description": "Manages UI state (AppState), user input routing, and ballistic computation cycles.",
+      "metadata": {
+        "state_machine": "AppState"
+      }
+    },
+    {
+      "id": "src_sensors.h_Sensors",
+      "type": "Class",
+      "description": "High-level interface for BME280 (environmental), QMC5883P (compass), and MPU6050 (accelerometer/cant) sensors.",
+      "metadata": {
+        "hardware": [
+          "BME280",
+          "QMC5883P",
+          "MPU6050"
+        ]
+      }
+    },
+    {
+      "id": "src_storage.h_Storage",
+      "type": "Class",
+      "description": "Handles persistence of rifle profiles and stage targets using ESP32 Non-Volatile Storage (NVS).",
+      "metadata": {
+        "backend": "Preferences"
+      }
+    },
+    {
+      "id": "src_input.h_Input",
+      "type": "Class",
+      "description": "Processes signals from the 5-way navigation button, implementing debouncing and event patterns (long-press, double-press).",
+      "metadata": {
+        "inputs": "5-way button"
+      }
+    },
+    {
+      "id": "src_webserver.h_WebServer_",
+      "type": "Class",
+      "description": "Asynchronous web server providing a responsive UI and REST API for remote configuration.",
+      "metadata": {
+        "features": [
+          "REST API",
+          "Captive Portal",
+          "WiFi AP"
+        ]
+      }
+    },
+    {
+      "id": "src_wind.h_WindSensor",
+      "type": "Class",
+      "description": "Driver for Calypso ultrasonic anemometer, parsing NMEA 0183 sentences via UART.",
+      "metadata": {
+        "protocol": "NMEA 0183",
+        "interface": "UART2"
+      }
+    },
+    {
+      "id": "src_display.h_Display",
+      "type": "Class",
+      "description": "Encapsulates OLED screen drawing logic, including menus, sensor readouts, and corrections.",
+      "metadata": {
+        "controller": "SH1106"
+      }
+    },
+    {
+      "id": "src_config.h_cfg",
+      "type": "Namespace",
+      "description": "Central repository for GPIO pin maps and system-wide timing/threshold constants.",
+      "metadata": {}
+    },
+    {
+      "id": "lib_ballistic_ballistic.h_ballistic_Calculator",
+      "type": "Class",
+      "description": "Core C++ implementation of the 3DOF point-mass ballistic engine.",
+      "metadata": {
+        "features": [
+          "Multi-BC",
+          "Powder Sensitivity",
+          "Coriolis"
+        ]
+      }
+    },
+    {
+      "id": "src_storage.h_RifleConfig",
+      "type": "Struct",
+      "description": "Data record containing bullet parameters, muzzle velocity, and user display preferences.",
+      "metadata": {}
+    },
+    {
+      "id": "src_storage.h_StageConfig",
+      "type": "Struct",
+      "description": "Container for multiple StageTarget entries used in stage-based shooting modes.",
+      "metadata": {}
+    },
+    {
+      "id": "test_test_compare.py_TestCompare",
+      "type": "Test Script",
+      "description": "Python-based validation suite that compares the native build of the C++ engine against the py_ballisticcalc reference library.",
+      "metadata": {}
+    },
+    {
+      "id": "bin_py_ballisticcalc_Library",
+      "type": "Library",
+      "description": "Reference Python ballistic library used as the ground truth for engine validation.",
+      "metadata": {}
+    }
+  ],
+  "relationships": [
+    {
+      "source": "src_main.cpp_MainLoop",
+      "target": "src_modes.h_ModeManager",
+      "type": "MANAGES",
+      "description": "Main loop polls the mode manager to handle state and logic.",
+      "confidence": 1.0,
+      "source_type": "EXTRACTED"
+    },
+    {
+      "source": "src_main.cpp_MainLoop",
+      "target": "src_sensors.h_Sensors",
+      "type": "POLLS",
+      "description": "Periodic sampling of environmental and orientation sensors.",
+      "confidence": 1.0,
+      "source_type": "EXTRACTED"
+    },
+    {
+      "source": "src_main.cpp_MainLoop",
+      "target": "src_input.h_Input",
+      "type": "POLLS",
+      "description": "Retrieves button events for UI navigation.",
+      "confidence": 1.0,
+      "source_type": "EXTRACTED"
+    },
+    {
+      "source": "src_modes.h_ModeManager",
+      "target": "lib_ballistic_ballistic.h_ballistic_Calculator",
+      "type": "USES",
+      "description": "Executes trajectory simulations using the ballistic calculator.",
+      "confidence": 1.0,
+      "source_type": "EXTRACTED"
+    },
+    {
+      "source": "src_webserver.h_WebServer_",
+      "target": "src_storage.h_RifleConfig",
+      "type": "MODIFIES",
+      "description": "Updates global configuration variables from network requests.",
+      "confidence": 1.0,
+      "source_type": "EXTRACTED"
+    },
+    {
+      "source": "src_webserver.h_WebServer_",
+      "target": "src_storage.h_Storage",
+      "type": "CALLS",
+      "description": "Persistence of modified configs to flash memory.",
+      "confidence": 1.0,
+      "source_type": "EXTRACTED"
+    },
+    {
+      "source": "src_storage.h_Storage",
+      "target": "src_storage.h_RifleConfig",
+      "type": "SERIALIZES",
+      "description": "Converts config struct to binary blob for NVS storage.",
+      "confidence": 1.0,
+      "source_type": "EXTRACTED"
+    },
+    {
+      "source": "src_sensors.h_Sensors",
+      "target": "src_config.h_cfg",
+      "type": "DEPENDS_ON",
+      "description": "Uses defined I2C addresses and GPIO pins.",
+      "confidence": 1.0,
+      "source_type": "EXTRACTED"
+    },
+    {
+      "source": "src_main.cpp_MainLoop",
+      "target": "src_display.h_Display",
+      "type": "UPDATES",
+      "description": "Renders the updated application state to the physical screen.",
+      "confidence": 1.0,
+      "source_type": "EXTRACTED"
+    },
+    {
+      "source": "test_test_compare.py_TestCompare",
+      "target": "lib_ballistic_ballistic.h_ballistic_Calculator",
+      "type": "VALIDATES",
+      "description": "Compares C++ engine accuracy against known-good Python output.",
+      "confidence": 1.0,
+      "source_type": "EXTRACTED"
+    },
+    {
+      "source": "test_test_compare.py_TestCompare",
+      "target": "bin_py_ballisticcalc_Library",
+      "type": "USES",
+      "description": "Leverages Python library for side-by-side comparison.",
+      "confidence": 1.0,
+      "source_type": "EXTRACTED"
+    },
+    {
+      "source": "src_input.h_Input",
+      "target": "src_main.cpp_MainLoop",
+      "type": "INFORMS",
+      "description": "Center button long-press event signals system shutdown/sleep.",
+      "confidence": 0.9,
+      "source_type": "INFERRED"
+    },
+    {
+      "source": "src_sensors.h_Sensors",
+      "target": "src_storage.h_RifleConfig",
+      "type": "USES",
+      "description": "Reads compass and cant calibration offsets from config.",
+      "confidence": 1.0,
+      "source_type": "EXTRACTED"
+    }
+  ]
+}
