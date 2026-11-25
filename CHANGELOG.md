@@ -7,11 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Planned (not yet implemented — v2)
-- Remove WiFi AP / web server (`ESPAsyncWebServer`, `DNSServer`, `web_ui.h`).
-- Add BLE phone app (NimBLE, JSON-over-GATT, app-layer PIN): config editor, live dashboard, remote control.
-- Add remote weather node (ESP32-C3 + SHT31 + BMP280 + e-paper) over ESP-NOW; auto-fallback to manual weather.
-- Add FX True Ballistic radar proxy (BLE central + shot relay) and per-shot velocity/BC logging on the phone.
+### Added
+- **BLE phone peripheral (v2)** — `src/ble_server.{h,cpp}`: NimBLE GATT server with JSON-over-GATT config read/write, live telemetry notify, and command writes, gated by a 4-digit app-layer PIN (shown on the OLED). Advertising is toggled from the menu ("BT Toggle"). Service UUID `19B10000-E8F2-537E-4F6C-D104768A1214`.
+- **Weather dongle scan (v2)** — the device passively scans for the BLE weather dongle beacon (`re/weather_dongle/`) every 10 s (2 s window) and feeds T/P/RH into the sensor model; >30 s stale falls back to manual weather. New "Weather" menu item + read-only weather screen.
+- **Weather dongle firmware (v2)** — `re/weather_dongle/`: ESP32 + BME280 + SH1106 OLED, broadcasts T/P/RH as a BLE manufacturer-data beacon (company 0xFFFF) every 10 s.
+
+### Removed
+- **WiFi AP / web server** — deleted `src/webserver.{h,cpp}` and `src/web_ui.h`; removed `ESPAsyncWebServer`, `AsyncTCP`, and BME280 deps from `platformio.ini`. The on-board BME280 is gone (heat-skewed temperature); weather now comes from the dongle.
+- **Light sleep** — disabled because NimBLE runs the weather scan continuously and does not survive light sleep reliably.
+
+### Changed
+- **Sensor model** — `SensorData` no longer carries a local BME280; `Sensors::update()` only polls cant. Added `Sensors::setWeather()` fed by the BLE scan (or manual fallback).
+- **Config** — added `manual_temp_f`, `manual_pressure_inhg`, `manual_humidity_pct`, `dongle_mac[6]`, `dongle_mac_set`, and `ble_pin` to `RifleConfig`.
+- **Menu** — "WiFi" toggle renamed to "BT" toggle; menu now has 6 items (added "Weather").
+
+### Planned (not yet implemented — v2 phone app)
+- Flutter phone app (config editor, live dashboard, radar shot capture via direct FX connection, CSV import, MV/BC prediction model).
+- Additional BLE remote-control commands (compass calibration, mode switch).
 
 ### Added
 - **Magnetometer (compass) calibration** — hard iron offset and soft iron scale correction for QMC5883P. Calibration is triggered from the Sensor View screen: press CENTER to start, rotate the device 360° on a flat surface, press CENTER again to finish. Calibration values (offset X/Y, scale X/Y) are persisted in NVS and reloaded on boot. Fixes incorrect heading readings and non-linear rotation caused by nearby electronics (ESP32, OLED, wires).

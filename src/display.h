@@ -12,9 +12,10 @@ constexpr uint8_t APP_STATE_LIVE          = 1;
 constexpr uint8_t APP_STATE_STAGE         = 2;
 constexpr uint8_t APP_STATE_SENSORS       = 3;
 constexpr uint8_t APP_STATE_DIGITAL_LEVEL = 4;
+constexpr uint8_t APP_STATE_WEATHER       = 5;
 
 /// Display layout (128×64 monochrome, monospace fonts):
-///   Y  0–9   : mode header + WiFi icon          (5×8 font)
+///   Y  0–9   : mode header + BT icon            (5×8 font)
 ///   Y 12–23  : distance / target info            (6×12 font)
 ///   Y 26–39  : vertical correction               (7×14 font)
 ///   Y 42–55  : horizontal correction             (7×14 font)
@@ -28,7 +29,7 @@ public:
     // --- State setters ---
     void setAppState(uint8_t state);
     void setMenuCursor(uint8_t cursor);
-    void setWifiOn(bool on);
+    void setBtOn(bool on);
     void setCant(float cant_deg);
     void setCantCalibration(float offset, float sensitivity);
     void showShutdown();
@@ -49,7 +50,8 @@ public:
     void setUnitDistance(uint8_t u);
     void setUnitTemperature(uint8_t u);
     void setUnitPressure(uint8_t u);
-    void setWifiActive(bool active);
+    void setBtActive(bool active);
+    void setWeatherLive(bool live);
     void setLiveDigitCursor(uint8_t pos);   // 0=thousands, 1=hundreds, ...
     void setBattery(float pct, float volts);
 
@@ -62,14 +64,14 @@ private:
     uint8_t  stage_total_  = 0;
     char     stage_name_[17] = {0};
     uint16_t distance_yd_  = 0;
-    bool     wifi_active_  = false;
+    bool     bt_active_    = false;
     uint8_t  digit_cursor_ = 1;   // live mode cursor position (0-3)
 
     // Menu & cant state
     uint8_t  app_state_    = APP_STATE_MENU;
     uint8_t  menu_cursor_  = 0;
     uint8_t  menu_scroll_   = 0; // first visible menu item index
-    bool     wifi_menu_on_ = false;
+    bool     bt_menu_on_   = false;
     float    cant_deg_        = 0.0f;
     float    cant_offset_     = 0.0f;
     float    cant_sensitivity_= 1.0f;
@@ -97,6 +99,7 @@ private:
     uint8_t  unit_temperature_ = 0;
     uint8_t  unit_pressure_    = 0;
     bool     compass_cal_     = false;  // compass calibration in progress
+    bool     weather_live_    = false;  // dongle data fresh (vs manual)
 
     void drawHeader();
     void drawDistance();
@@ -104,6 +107,8 @@ private:
     void drawSensorBar();
     void drawMenu();
     void drawSensorView();
+    void drawWeather();
+    void drawBtIcon(int x, int y);
     void drawCantSlider();
     void drawDigitalLevel();
     void drawArrowUp(int x, int y);

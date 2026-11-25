@@ -60,6 +60,18 @@ struct RifleConfig {
     uint8_t  unit_length       = 0;   // 0=in, 1=mm
     uint8_t  unit_temperature  = 0;   // 0=°F, 1=°C
     uint8_t  unit_pressure     = 0;   // 0=inHg, 1=hPa
+
+    // Manual weather fallback (used when the dongle is absent / stale)
+    float    manual_temp_f        = 59.0f;
+    float    manual_pressure_inhg = 29.92f;
+    float    manual_humidity_pct  = 0.0f;
+
+    // Weather dongle binding (BLE MAC; empty = accept any dongle)
+    uint8_t  dongle_mac[6]        = {0};
+    bool     dongle_mac_set       = false;
+
+    // BLE app-layer PIN (shown on OLED; gates config/command writes)
+    uint32_t ble_pin              = 1234;
 };
 
 /// A single staged target.

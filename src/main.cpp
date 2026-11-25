@@ -2,20 +2,19 @@
 /// @brief Ballistic Sentinel — entry point.
 ///
 /// Ties together all sub-systems: display, input, sensors, wind, storage,
-/// ballistic calculator (modes), and optional WiFi web-server.
+/// ballistic calculator (modes), BLE (phone config + weather dongle).
 
 #include <Arduino.h>
 #include <Wire.h>
 #include <esp_sleep.h>
-#include <esp_wifi.h>
 
+#include "ble_server.h"
 #include "config.h"
 #include "display.h"
 #include "input.h"
 #include "sensors.h"
 #include "storage.h"
 #include "wind.h"
-#include "webserver.h"
 #include "modes.h"
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -27,17 +26,16 @@ static Input       g_input;
 Sensors            g_sensors;
 static WindSensor  g_wind;
 Storage            g_storage;
-static WebServer_  g_web;
+static BleServer   g_ble;
 static ModeManager g_modes;
 
 RifleConfig        g_rifle;
 StageConfig        g_stages;
 
-/// Set by the web-server REST handler when a new config is POSTed.
+/// Set by the BLE config handler when a new config is written.
 volatile bool g_config_changed = false;
 
 // Timing
-static uint32_t s_last_env_sensor  = 0;
 static uint32_t s_last_cant_sensor = 0;
 static uint32_t s_last_display     = 0;
 static uint32_t s_last_batt_read   = 0;
@@ -69,7 +67,7 @@ static void updateDisplay() {
 
     if (g_modes.appState() == AppState::MAIN_MENU) {
         g_display.setMenuCursor(g_modes.menuCursor());
-        g_display.setWifiOn(g_modes.wifiOn());
+        g_display.setBtOn(g_modes.btOn());
     } else if (g_modes.appState() == AppState::SENSOR_VIEW) {
         const auto& sd = g_sensors.data();
         const auto& wd = g_wind.data();
@@ -85,6 +83,9 @@ static void updateDisplay() {
         g_display.setCant(sd.cant_deg);
         g_display.setCantCalibration(g_rifle.cant_offset,
                                       g_rifle.cant_sensitivity);
+    } else if (g_modes.appState() == AppState::WEATHER_VIEW) {
+        const auto& sd = g_sensors.data();
+        g_display.setSensors(sd.temperature_f, sd.pressure_inhg, sd.humidity_pct);
     } else {
         bool staged = (g_modes.appState() == AppState::STAGE_SHOOTING);
         g_display.setMode(staged, g_modes.stageIndex(), g_modes.stageCount());
@@ -104,7 +105,8 @@ static void updateDisplay() {
                                       g_rifle.cant_sensitivity);
     }
 
-    g_display.setWifiActive(g_web.isActive());
+    g_display.setBtActive(g_ble.isAdvertising());
+    g_display.setWeatherLive(g_ble.weatherLive());
     g_display.setBattery(g_sensors.data().battery_pct,
                           g_sensors.data().battery_v);
     g_display.update();
@@ -127,6 +129,7 @@ void setup() {
     g_input.begin();
     g_sensors.begin();
     g_wind.begin();
+    g_ble.begin();
 
     // Load saved config (or use defaults)
     if (!g_storage.load(g_rifle, g_stages)) {
@@ -152,7 +155,7 @@ void setup() {
     g_sensors.update();
     g_modes.compute(g_sensors.data(), g_wind.data());
 
-    // LED off (we use it as WiFi indicator)
+    // LED off (we use it as BLE advertising indicator)
     pinMode(cfg::PIN_LED, OUTPUT);
     digitalWrite(cfg::PIN_LED, LOW);
 
@@ -230,21 +233,21 @@ void loop() {
 
         g_modes.handleButton(btn);
 
-        // WiFi toggled from menu
-        if (g_modes.wifiToggled()) {
-            if (g_modes.wifiOn()) {
-                g_web.begin();
+        // BLE advertising toggled from menu
+        if (g_modes.btToggled()) {
+            if (g_modes.btOn()) {
+                g_ble.startAdvertising();
             } else {
-                g_web.stop();
+                g_ble.stopAdvertising();
             }
-            digitalWrite(cfg::PIN_LED, g_modes.wifiOn() ? HIGH : LOW);
+            digitalWrite(cfg::PIN_LED, g_modes.btOn() ? HIGH : LOW);
         }
     }
 
-    // ── Config hot-reload from web server ─────────────────────────────────
+    // ── Config hot-reload from BLE phone app ──────────────────────────────
     if (g_config_changed) {
         g_config_changed = false;
-        g_storage.load(g_rifle, g_stages);   // re-read what webserver saved
+        g_storage.load(g_rifle, g_stages);   // re-read what the phone app saved
         applyConfig();
         s_calc_needed = true;
         s_display_dirty = true;
@@ -254,14 +257,8 @@ void loop() {
     // ── Wind sensor polling ───────────────────────────────────────────────
     g_wind.poll();
 
-    // ── Captive portal DNS ────────────────────────────────────────────────
-    g_web.processDNS();
-
-    // Sync WiFi state — the web UI can shut down WiFi independently
-    if (g_modes.wifiOn() != g_web.isActive()) {
-        g_modes.setWifiOn(g_web.isActive());
-        digitalWrite(cfg::PIN_LED, g_web.isActive() ? HIGH : LOW);
-    }
+    // ── BLE: weather scan cadence + staleness fallback ────────────────────
+    g_ble.update();
 
     // ── Cant calibration completion ───────────────────────────────────────
     if (g_sensors.cantCalibrationDone()) {
@@ -302,13 +299,6 @@ void loop() {
         s_display_dirty = true;
     }
 
-    // ── Environmental sensors (BME280 + compass, every 2 s) ──────────────
-    if (now - s_last_env_sensor >= cfg::ENV_SENSOR_INTERVAL_MS) {
-        s_last_env_sensor = now;
-        g_sensors.updateEnvironment();
-        s_display_dirty = true;
-    }
-
     // ── Battery voltage (every 10 s) ──────────────────────────────────
     if (now - s_last_batt_read >= cfg::BATT_READ_INTERVAL_MS) {
         s_last_batt_read = now;
@@ -327,7 +317,7 @@ void loop() {
     g_display.setDimmed(should_dim);
 
     // ── Auto deep-sleep on inactivity (no motion + no button) ─────────────
-    if (!g_web.isActive()
+    if (!g_ble.isAdvertising()
         && (now - s_last_activity > cfg::AUTO_SLEEP_TIMEOUT_MS))
     {
         Serial.println("[main] No motion detected — entering deep sleep");
@@ -348,29 +338,20 @@ void loop() {
         s_display_dirty = true;
     }
 
-    // ── Display refresh ──────────────────────────────────────────────────
+    // ── Display refresh + telemetry push ──────────────────────────────────
     if (s_display_dirty && (now - s_last_display >= DISPLAY_INTERVAL_MS)) {
         s_last_display = now;
         s_display_dirty = false;
         updateDisplay();
-    }
 
-    // ── Light sleep when idle (skip if WiFi AP is active) ────────────────
-    if (!g_web.isActive()) {
-        uint32_t next_cant    = s_last_cant_sensor + cfg::CANT_SENSOR_INTERVAL_MS;
-        uint32_t next_env     = s_last_env_sensor  + cfg::ENV_SENSOR_INTERVAL_MS;
-        uint32_t next_display = s_last_display     + DISPLAY_INTERVAL_MS;
-        uint32_t next_wake    = next_cant;
-        if (next_env < next_wake) next_wake = next_env;
-        if (s_display_dirty && next_display < next_wake) next_wake = next_display;
-
-        int32_t sleep_ms = static_cast<int32_t>(next_wake - now);
-        if (sleep_ms > 10) {
-            esp_sleep_enable_timer_wakeup(
-                static_cast<uint64_t>(sleep_ms) * 1000ULL);
-            // Button ISRs will also wake from light sleep
-            esp_sleep_enable_gpio_wakeup();
-            esp_light_sleep_start();
-        }
+        // Push a snapshot to a subscribed phone (no-op when unsubscribed).
+        const auto& sd = g_sensors.data();
+        const bool staged = (g_modes.appState() == AppState::STAGE_SHOOTING);
+        g_ble.publishTelemetry(sd, g_modes.displayDistance(),
+                               static_cast<float>(g_modes.result().vertical),
+                               static_cast<float>(g_modes.result().horizontal),
+                               staged);
     }
+    // NOTE: light sleep is intentionally disabled — NimBLE runs the weather
+    // scan continuously and does not survive light sleep reliably.
 }

@@ -2,7 +2,6 @@
 #include "config.h"
 
 #include <Wire.h>
-#include <Adafruit_BME280.h>
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <driver/adc.h>
@@ -115,25 +114,10 @@ static float headingSmooth(float deg) {
 }
 
 // Module-level instances (hidden from header)
-static Adafruit_BME280  s_bme;
 static Adafruit_MPU6050 s_mpu;
 static esp_adc_cal_characteristics_t s_adc_chars;
 
 void Sensors::begin() {
-    // BME280
-    data_.bme_ok = s_bme.begin(cfg::I2C_ADDR_BME280, &Wire);
-    if (data_.bme_ok) {
-        // Forced mode: sensor sleeps between on-demand reads (~1 µA idle)
-        s_bme.setSampling(
-            Adafruit_BME280::MODE_FORCED,
-            Adafruit_BME280::SAMPLING_X2,   // temp
-            Adafruit_BME280::SAMPLING_X16,  // pressure
-            Adafruit_BME280::SAMPLING_X1,   // humidity
-            Adafruit_BME280::FILTER_X16,
-            Adafruit_BME280::STANDBY_MS_1000
-        );
-    }
-
     // QMC5883P compass
     Wire.beginTransmission(cfg::I2C_ADDR_QMC5883P);
     data_.compass_ok = (Wire.endTransmission() == 0) && qmc5883p::init();
@@ -167,22 +151,15 @@ void Sensors::begin() {
 }
 
 void Sensors::update() {
-    updateEnvironment();
     updateCant();
 }
 
-void Sensors::updateEnvironment() {
-    // ── BME280 (forced mode — trigger measurement then read) ──────────────
-    if (data_.bme_ok) {
-        s_bme.takeForcedMeasurement();
-        float temp_c      = s_bme.readTemperature();       // °C
-        float press_hpa   = s_bme.readPressure() / 100.0f; // hPa
-        float humidity    = s_bme.readHumidity();           // %
-
-        data_.temperature_f = temp_c * 9.0f / 5.0f + 32.0f;
-        data_.pressure_inhg = press_hpa * 0.02953f;        // hPa → inHg
-        data_.humidity_pct  = humidity;
-    }
+void Sensors::setWeather(float temp_f, float pressure_inhg, float humidity_pct,
+                         bool live) {
+    data_.temperature_f = temp_f;
+    data_.pressure_inhg = pressure_inhg;
+    data_.humidity_pct  = humidity_pct;
+    data_.weather_live  = live;
 }
 
 void Sensors::updateCompass() {

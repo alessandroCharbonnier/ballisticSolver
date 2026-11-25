@@ -4,14 +4,14 @@ A live ballistic calculator for long-range shooting, built on the ESP32-WROOM-32
 The complete C++ ballistic engine is a from-scratch rewrite of [py_ballisticcalc](../bin/py_ballisticcalc),
 validated to within 0.3% of the Python reference across 87 scenarios and 1850 trajectory points.
 
-## v2 Roadmap (in design)
+## v2 (implemented)
 
 v2 reworks connectivity and weather:
 
-- **Weather moves off-board** — a separate ESP32-C3 weather node (SHT31 + BMP280 + 2.13" e-paper, LiPo) samples T/P/RH and broadcasts over ESP-NOW every 10 s. The main device auto-uses live node data; when the node is absent it falls back to manual weather (set on-device or in the app). No more self-heating temperature error from the ESP32.
-- **WiFi AP / web server removed** — replaced by a BLE (NimBLE) phone app: config editor, live dashboard, remote control, app-layer PIN. BLE is on-demand (menu toggle) to preserve battery.
-- **FX True Ballistic radar proxy (planned)** — the device acts as BLE central to an FX True Ballistic radar and relays each shot (radar data + weather snapshot + timestamp) to the phone. The phone owns all data: box inventory (CSV import), magazine stacks, and per-shot logs used to train a muzzle-velocity / BC prediction model.
-- Radar protocol reverse-engineering is a prerequisite (decompile the official FX app); not yet started.
+- **Weather moves off-board** — a separate BLE weather dongle (ESP32 + BME280 + SH1106 OLED, see `re/weather_dongle/`) samples T/P/RH and broadcasts it as a BLE manufacturer-data beacon every 10 s. The main device scans passively for the beacon; when the dongle is absent (or stale >30 s) it falls back to manual weather. No more self-heating temperature error from the ESP32.
+- **WiFi AP / web server removed** — replaced by a BLE (NimBLE) peripheral: JSON-over-GATT config editor, live telemetry, and commands, gated by a 4-digit app-layer PIN (shown on the OLED). Advertising is on-demand (menu "BT" toggle) to preserve battery.
+- **FX True Ballistic radar** — connects directly to the phone (BLE); the device does not proxy radar data. The phone owns all data: box inventory (CSV import), magazine stacks, and per-shot logs used to train a muzzle-velocity / BC prediction model.
+- Radar BLE protocol fully reverse-engineered (see `re/RADAR_PROTOCOL.md`).
 
 ## Features
 
@@ -19,13 +19,13 @@ v2 reworks connectivity and weather:
   CIPM-2007 atmosphere model, spin drift (Litz formula), Miller stability, Coriolis-ready (disabled pending magnetometer calibration)
 - **All 9 standard drag tables**: G1, G7, G2, G5, G6, G8, GI, GS, RA4
 - **Multi-BC support** — velocity-stepped ballistic coefficients
-- **Four operating modes**:
+- **Five operating modes**:
   - **Live** — dial distance with a combination-lock style 4-digit display (yards)
   - **Staged** — pre-programmed target stages (PRS-style matches, up to 20)
   - **Sensor View** — real-time display of all sensor readings
   - **Digital Level** — full-screen cant readout with graphical bubble level, "LEVEL" indicator + display inversion when within sensitivity threshold, directional tilt hints when off-level
-  - **Weather** — view/edit temperature, pressure, humidity; auto-uses the remote weather node when present, manual values otherwise
-- **Remote weather** — T/P/RH from a separate ESP32-C3 node over ESP-NOW (auto-fallback to manual entry)
+  - **Weather** — read-only view of temperature, pressure, humidity with live source indication (BLE dongle vs manual fallback)
+- **Remote weather** — T/P/RH from a separate BLE weather dongle (`re/weather_dongle/`); auto-fallback to manual values when the dongle is absent
 - **On-board sensors** — QMC5883P (compass heading), MPU6050 (cant/roll detection)
 - **Calypso ultrasonic anemometer** — NMEA 0183 wind input (prepared, UART2)
 - **Cant detection** — MPU6050 accelerometer with auto-calibration, visual cant slider, display auto-invert when level
@@ -34,7 +34,7 @@ v2 reworks connectivity and weather:
 - **BLE phone app** — configure rifle/stages, live dashboard, remote control via NimBLE GATT (app-layer PIN)
 - **FX True Ballistic radar proxy (planned)** — relays radar shot events to the phone for per-shot velocity logging
 - **Persistent storage** — NVS for rifle config, stage definitions, and cant calibration
-- **Power management** — auto-dim after 2 min inactivity (~80% brightness reduction), accelerometer-based auto deep-sleep after 10 min with no motion, ESP32 light sleep between sensor intervals, event-driven ballistic recalculation (on distance change only), compass ODR reduced to 10 Hz, BLE/ESP-NOW on-demand
+- **Power management** — auto-dim after 2 min inactivity (~80% brightness reduction), accelerometer-based auto deep-sleep after 10 min with no motion, ESP32 light sleep between sensor intervals, event-driven ballistic recalculation (on distance change only), compass ODR reduced to 10 Hz, BLE advertising on-demand, periodic weather scan
 - **Battery monitoring** — LiPo voltage via ADC1 (GPIO36) with voltage divider, piecewise-linear discharge curve, battery icon in OLED header on all screens
 - **Unit preferences** — configurable imperial/metric units for distance, velocity, weight, length, temperature, and pressure
 
@@ -54,22 +54,22 @@ v2 reworks connectivity and weather:
 | Battery | 3.7V LiPo (e.g. 2000mAh) | Requires 2× 100kΩ voltage divider |
 | Resistors | 2 × 100kΩ | Voltage divider for battery ADC |
 
-### Weather Node (separate device, v2)
+### Weather Dongle (separate device, v2)
 
 | Component | Part | Notes |
 |-----------|------|-------|
-| MCU | ESP32-C3 SuperMini | ESP-NOW TX every 10 s, deep sleep |
-| Temp/humidity | SHT31 | ±0.2 °C, I2C |
-| Pressure | BMP280 | ±1 hPa, I2C |
-| Display | 2.13" e-paper B/W | zero idle power, sunlight-readable |
-| Power | LiPo 300–500 mAh | USB-C recharge |
-| Enclosure | ventilated, sensor exposed | swing to refresh air (no impeller) |
+| MCU | ESP32-WROOM-32 (classic) | BLE manufacturer-data beacon every 10 s |
+| Temp/humidity/pressure | BME280 | I2C, addr 0x76 |
+| Display | 1.3" OLED SH1106 | local readout, 0x3C |
+| Power | 3.3 V rail | — |
+
+Firmware: `re/weather_dongle/`. Wiring: 3.3V→VCC, GND→GND, GPIO21→SDA, GPIO22→SCL; BME280 SDO→GND (0x76), CSB→3.3V; OLED VCC/GND/SCL/SDA.
 
 ### Pin Map
 
 | GPIO | Function | Direction | Notes |
 |------|----------|-----------|-------|
-| **21** | I2C SDA | Bidirectional | Shared bus: OLED + BME280 + QMC5883P + MPU6050 |
+| **21** | I2C SDA | Bidirectional | Shared bus: OLED + QMC5883P + MPU6050 |
 | **22** | I2C SCL | Output | 400 kHz Fast-mode |
 | **32** | Button UP | Input (pull-up) | Active-low |
 | **33** | Button DOWN | Input (pull-up) | Active-low |
@@ -130,16 +130,16 @@ Ballistic Sentinel/
 │   ├── config.h            # Pin assignments, timing constants
 │   ├── display.h/.cpp      # U8g2 SH1106 OLED driver
 │   ├── input.h/.cpp        # 5-way button with debounce/repeat
-│   ├── sensors.h/.cpp      # QMC5883P + MPU6050 polling (env via remote node)
+│   ├── sensors.h/.cpp      # QMC5883P + MPU6050 polling (weather via BLE dongle)
 │   ├── storage.h/.cpp      # NVS persistent config
-│   ├── ble_server.h/.cpp   # NimBLE GATT server (phone) — planned
-│   ├── espnow.h/.cpp       # ESP-NOW weather receiver — planned
-│   ├── radar_link.h/.cpp   # FX True Ballistic BLE central + relay — planned
+│   ├── ble_server.h/.cpp   # NimBLE GATT server (phone) + weather-dongle scan
 │   ├── wind.h/.cpp         # Calypso NMEA parser
-│   ├── modes.h/.cpp        # Live/Staged/Sensor/Weather mode manager
+│   ├── modes.h/.cpp        # Live/Staged/Sensor/Level/Weather mode manager
 │   └── main.cpp            # Firmware entry point
-├── node/                   # ESP32-C3 weather node firmware — planned
-│   └── node.ino            # SHT31 + BMP280 + e-paper, ESP-NOW TX, deep sleep
+├── re/                     # Reverse-engineering + companion firmwares
+│   ├── weather_dongle/     # BLE weather dongle firmware (BME280 + OLED)
+│   ├── radar_connect/      # FX True Ballistic BLE central tap
+│   └── RADAR_PROTOCOL.md   # Decoded FX radar BLE protocol
 ├── test/
 │   ├── test_native/        # Unity C++ unit tests (37 cases)
 │   └── test_compare/       # C++ output for Python comparison
@@ -229,28 +229,27 @@ build_flags =
 
 ## Phone App (BLE, v2)
 
-Replaces the WiFi web UI. A Flutter app (Android + iOS) connects over BLE (NimBLE)
-when **BT Toggle** is switched on from the device menu. An app-layer 4-digit PIN
+Replaces the WiFi web UI. A Flutter app (Android + iOS) connects over BLE when
+**BT Toggle** is switched on from the device menu. An app-layer 4-digit PIN
 (shown on the OLED) gates config and command writes.
 
 - **Config editor** — rifle, units, stages, multi-BC, powder sensitivity, cant calibration
 - **Live dashboard** — weather, wind, cant, battery, current correction
-- **Remote control** — trigger cant/compass calibration, switch modes
+- **Remote control** — trigger cant calibration (more commands planned)
 
-### BLE GATT (JSON over GATT, MTU 512, versioned `{"v":1}`)
+### BLE GATT (JSON over GATT)
 
-| Characteristic | Access | Description |
-|----------------|--------|-------------|
-| `config` | Read/Write | Rifle + stage config (JSON) |
-| `telemetry` | Notify | Live sensor/weather/correction (JSON, ~1 s) |
-| `command` | Write | Remote control commands (JSON) |
-| `status` | Notify | Command acks + status |
+Service: `19B10000-E8F2-537E-4F6C-D104768A1214`
 
-### Radar proxy (planned)
+| Characteristic | UUID | Access | Description |
+|----------------|------|--------|-------------|
+| `config` | `19B10001-…` | Read/Write | Rifle + stage config (JSON) |
+| `telemetry` | `19B10002-…` | Notify | Live sensor/weather/correction (JSON) |
+| `command` | `19B10003-…` | Write | Remote control commands (JSON: `{"cmd":"auth","pin":…}`, `{"cmd":"cant_cal"}`) |
+| `status` | `19B10004-…` | Notify | Command acks + status |
 
-| Characteristic | Access | Description |
-|----------------|--------|-------------|
-| `shot` | Notify | Relayed radar shot: radar data + weather snapshot + timestamp |
+The FX True Ballistic radar connects directly to the phone; the device does not
+relay radar data (see `re/RADAR_PROTOCOL.md`).
 
 ## Test Coverage
 

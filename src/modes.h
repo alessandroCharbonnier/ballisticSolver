@@ -13,10 +13,11 @@ enum class AppState : uint8_t {
     LIVE_SHOOTING,
     STAGE_SHOOTING,
     SENSOR_VIEW,
-    DIGITAL_LEVEL
+    DIGITAL_LEVEL,
+    WEATHER_VIEW
 };
 
-constexpr uint8_t MENU_ITEM_COUNT = 5;
+constexpr uint8_t MENU_ITEM_COUNT = 6;
 
 class ModeManager {
 public:
@@ -34,9 +35,9 @@ public:
     // --- Accessors ---
     AppState     appState()    const { return app_state_; }
     uint8_t      menuCursor()  const { return menu_cursor_; }
-    bool         wifiOn()      const { return wifi_on_; }
-    void         setWifiOn(bool on)  { wifi_on_ = on; }
-    bool         wifiToggled()       { bool t = wifi_toggled_; wifi_toggled_ = false; return t; }
+    bool         btOn()      const { return bt_on_; }
+    void         setBtOn(bool on)  { bt_on_ = on; }
+    bool         btToggled()       { bool t = bt_toggled_; bt_toggled_ = false; return t; }
     uint16_t     distance()    const;
     uint8_t      stageIndex()  const { return stage_idx_; }
     uint8_t      stageCount()  const { return stage_count_; }
@@ -66,8 +67,8 @@ public:
 private:
     AppState app_state_   = AppState::MAIN_MENU;
     uint8_t  menu_cursor_ = 0;
-    bool     wifi_on_     = false;
-    bool     wifi_toggled_ = false;
+    bool     bt_on_     = false;
+    bool     bt_toggled_ = false;
     bool     compass_cal_start_   = false;
     bool     compass_cal_finish_  = false;
     bool     compass_cal_active_  = false;  // mirrors sensor state
@@ -102,4 +103,5 @@ private:
     void handleStageButton(ButtonState btn);
     void handleSensorButton(ButtonState btn);
     void handleDigitalLevelButton(ButtonState btn);
+    void handleWeatherButton(ButtonState btn);
 };

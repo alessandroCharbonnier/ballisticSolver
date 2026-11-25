@@ -9,17 +9,6 @@
 // Large  : u8g2_font_7x14_mf      – 7×14  (corrections)
 // ────────────────────────────────────────────────────────────────────────────
 
-// WiFi icon 11×8 px (XBM, PROGMEM)
-static const uint8_t wifi_icon[] PROGMEM = {
-    0xFC, 0x01,  // ..#######..
-    0xFE, 0x03,  // .#########.
-    0x03, 0x06,  // ##.......##
-    0xF9, 0x04,  // #..#####..#
-    0xF8, 0x00,  // ...#####...
-    0x70, 0x00,  // ....###....
-    0x00, 0x00,  // ...........
-    0x20, 0x00   // .....#.....
-};
 
 void Display::begin() {
     u8g2_.begin();
@@ -36,6 +25,8 @@ void Display::update() {
         drawSensorView();
     } else if (app_state_ == APP_STATE_DIGITAL_LEVEL) {
         drawDigitalLevel();
+    } else if (app_state_ == APP_STATE_WEATHER) {
+        drawWeather();
     } else {
         drawCantSlider();
         drawHeader();
@@ -100,13 +91,14 @@ void Display::setSensors(float t, float p, float h) {
 void Display::setUnitDistance(uint8_t u) { unit_distance_ = u; }
 void Display::setUnitTemperature(uint8_t u) { unit_temperature_ = u; }
 void Display::setUnitPressure(uint8_t u) { unit_pressure_ = u; }
-void Display::setWifiActive(bool a) { wifi_active_ = a; }
+void Display::setBtActive(bool a) { bt_active_ = a; }
+void Display::setWeatherLive(bool live) { weather_live_ = live; }
 void Display::setLiveDigitCursor(uint8_t pos) { digit_cursor_ = pos; }
 void Display::setBattery(float pct, float volts) { battery_pct_ = pct; battery_v_ = volts; }
 
 void Display::setAppState(uint8_t state) { app_state_ = state; }
 void Display::setMenuCursor(uint8_t cursor) { menu_cursor_ = cursor; }
-void Display::setWifiOn(bool on) { wifi_menu_on_ = on; }
+void Display::setBtOn(bool on) { bt_menu_on_ = on; }
 void Display::setCant(float cant_deg) { cant_deg_ = cant_deg; }
 void Display::setCantCalibration(float offset, float sensitivity) {
     cant_offset_ = offset;
@@ -174,7 +166,7 @@ void Display::drawMenu() {
 
     constexpr uint8_t LINE_H       = 14;
     constexpr uint8_t VISIBLE_MAX  = 4;   // 64px / 14px = 4 items
-    constexpr uint8_t TOTAL_ITEMS  = 5;
+    constexpr uint8_t TOTAL_ITEMS  = 6;
 
     // Keep scroll window centred on the cursor
     if (menu_cursor_ < menu_scroll_)
@@ -197,9 +189,10 @@ void Display::drawMenu() {
             case 1: u8g2_.drawStr(14, y, "Stage Shooting"); break;
             case 2: u8g2_.drawStr(14, y, "Digital Level");   break;
             case 3: u8g2_.drawStr(14, y, "Sensors");        break;
-            case 4:
+            case 4: u8g2_.drawStr(14, y, "Weather");        break;
+            case 5:
                 u8g2_.drawStr(14, y,
-                    wifi_menu_on_ ? "WiFi [ON]" : "WiFi [OFF]");
+                    bt_menu_on_ ? "BT [ON]" : "BT [OFF]");
                 break;
         }
         y += LINE_H;
@@ -273,6 +266,45 @@ void Display::drawSensorView() {
         snprintf(buf, sizeof(buf), "Batt   --  N/A");
     }
     u8g2_.drawStr(0, y, buf);
+}
+
+void Display::drawWeather() {
+    // Source header
+    u8g2_.setFont(u8g2_font_5x8_mf);
+    u8g2_.drawStr(0, 8, weather_live_ ? "Weather (DONGLE)" : "Weather (MANUAL)");
+
+    char buf[24];
+    float t = temp_f_;
+    const char* ts = "F";
+    if (unit_temperature_ == 1) {
+        t = (temp_f_ - 32.0f) * 5.0f / 9.0f;
+        ts = "C";
+    }
+
+    u8g2_.setFont(u8g2_font_6x12_mf);
+    snprintf(buf, sizeof(buf), "Temp  %5.1f %s", (double)t, ts);
+    u8g2_.drawStr(0, 26, buf);
+
+    if (unit_pressure_ == 1) {
+        snprintf(buf, sizeof(buf), "Press %5.0f hPa",
+                 (double)(press_inhg_ * 33.8639f));
+    } else {
+        snprintf(buf, sizeof(buf), "Press %5.2f inHg", (double)press_inhg_);
+    }
+    u8g2_.drawStr(0, 40, buf);
+
+    snprintf(buf, sizeof(buf), "Humid %5.1f %%", (double)humidity_);
+    u8g2_.drawStr(0, 54, buf);
+
+    u8g2_.setFont(u8g2_font_5x8_mf);
+    u8g2_.drawStr(0, 63, "2xCENTER = back");
+}
+
+void Display::drawBtIcon(int x, int y) {
+    // Bluetooth rune: vertical bar + two right-pointing triangles.
+    u8g2_.drawVLine(x, y, 8);
+    u8g2_.drawTriangle(x, y, x + 4, y + 2, x, y + 4);      // top
+    u8g2_.drawTriangle(x, y + 8, x + 4, y + 6, x, y + 4);  // bottom
 }
 
 void Display::drawDigitalLevel() {
@@ -371,9 +403,9 @@ void Display::drawHeader() {
         }
     }
 
-    // WiFi indicator icon (left of battery, no overlap with cant slider)
-    if (wifi_active_) {
-        u8g2_.drawXBMP(103, 0, 11, 8, wifi_icon);
+    // BT indicator icon (left of battery, no overlap with cant slider)
+    if (bt_active_) {
+        drawBtIcon(102, 0);
     }
 }
 

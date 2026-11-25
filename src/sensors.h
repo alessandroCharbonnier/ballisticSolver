@@ -1,18 +1,19 @@
 #pragma once
 /// @file sensors.h
-/// @brief BME280 (temp/pressure/humidity) + QMC5883P (compass heading).
+/// @brief Weather (BLE dongle / manual) + MPU6050 cant + QMC5883P compass.
 
 #include <cstdint>
 
 struct SensorData {
-    float temperature_f  = 59.0f;    // °F
+    float temperature_f  = 59.0f;    // °F (weather dongle, or manual fallback)
     float pressure_inhg  = 29.92f;   // inHg
     float humidity_pct   = 0.0f;     // %
     float heading_deg    = 0.0f;     // compass heading 0–360
     float cant_deg       = 0.0f;     // rifle cant (roll from MPU6050)
     float battery_pct    = -1.0f;    // battery 0–100 (−1 = not available)
     float battery_v      = 0.0f;     // raw battery voltage
-    bool  bme_ok         = false;
+    bool  weather_live   = false;    // true while dongle data is fresh
+    uint32_t weather_age_ms = 0;     // ms since last dongle read
     bool  compass_ok     = false;
     bool  mpu_ok         = false;
 };
@@ -62,14 +63,15 @@ public:
 
     const SensorData& data() const { return data_; }
 
+    /// Set environmental weather (from BLE dongle, or manual fallback).
+    void setWeather(float temp_f, float pressure_inhg, float humidity_pct,
+                    bool live);
+
     /// Read only the MPU6050 cant (fast, for high-rate polling).
     void updateCant();
 
     /// Read only the QMC5883P compass heading (fast I2C, 5–10 Hz).
     void updateCompass();
-
-    /// Read BME280 (slow forced-mode environmental sensors).
-    void updateEnvironment();
 
     /// Read battery voltage via ADC.
     void updateBattery();

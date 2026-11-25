@@ -79,6 +79,7 @@ void ModeManager::handleButton(ButtonState btn) {
         case AppState::STAGE_SHOOTING: handleStageButton(btn); break;
         case AppState::SENSOR_VIEW:    handleSensorButton(btn); break;
         case AppState::DIGITAL_LEVEL:  handleDigitalLevelButton(btn); break;
+        case AppState::WEATHER_VIEW:   handleWeatherButton(btn); break;
     }
 }
 
@@ -99,9 +100,10 @@ void ModeManager::handleMenuButton(ButtonState btn) {
             case 1: app_state_ = AppState::STAGE_SHOOTING; break;
             case 2: app_state_ = AppState::DIGITAL_LEVEL;  break;
             case 3: app_state_ = AppState::SENSOR_VIEW;    break;
-            case 4:
-                wifi_on_ = !wifi_on_;
-                wifi_toggled_ = true;
+            case 4: app_state_ = AppState::WEATHER_VIEW;   break;
+            case 5:
+                bt_on_ = !bt_on_;
+                bt_toggled_ = true;
                 break;
         }
     }
@@ -174,6 +176,13 @@ void ModeManager::handleSensorButton(ButtonState btn) {
 
 void ModeManager::handleDigitalLevelButton(ButtonState btn) {
     // Double-press CENTER → back to menu
+    if (btn.id == ButtonId::CENTER && btn.event == ButtonEvent::DOUBLE_PRESS) {
+        app_state_ = AppState::MAIN_MENU;
+    }
+}
+
+void ModeManager::handleWeatherButton(ButtonState btn) {
+    // Double-press CENTER → back to menu (read-only view)
     if (btn.id == ButtonId::CENTER && btn.event == ButtonEvent::DOUBLE_PRESS) {
         app_state_ = AppState::MAIN_MENU;
     }

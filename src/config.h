@@ -4,7 +4,7 @@
 ///
 /// ESP32-WROOM-32 pin map:
 ///
-///   I2C Bus (shared by OLED, BME280, QMC5883L)
+///   I2C Bus (shared by OLED, QMC5883P, MPU6050)
 ///     SDA  → GPIO 21
 ///     SCL  → GPIO 22
 ///
@@ -38,7 +38,6 @@ constexpr uint32_t I2C_FREQ_HZ     = 400000;  // 400 kHz Fast-mode
 
 // I2C addresses
 constexpr uint8_t I2C_ADDR_OLED    = 0x3C;    // SH1106 default
-constexpr uint8_t I2C_ADDR_BME280  = 0x76;    // SDO → GND
 constexpr uint8_t I2C_ADDR_QMC5883P = 0x2C;   // QMC5883P default
 constexpr uint8_t I2C_ADDR_MPU6050 = 0x68;    // AD0 → GND
 
@@ -72,11 +71,18 @@ constexpr uint32_t WIND_BAUD       = 4800; // Calypso NMEA default
 constexpr uint8_t PIN_LED          = 2;
 
 // ---------------------------------------------------------------------------
-//  WiFi Access Point
+//  BLE (NimBLE peripheral — phone config + telemetry)
 // ---------------------------------------------------------------------------
-constexpr const char* WIFI_SSID     = "BallisticSentinel";
-constexpr const char* WIFI_PASS     = "longrange";   // min 8 chars
-constexpr uint16_t    WIFI_PORT     = 80;
+constexpr const char* BLE_DEVICE_NAME = "BallisticSentinel";
+
+// ---------------------------------------------------------------------------
+//  Weather dongle (BLE beacon, read passively via scan)
+// ---------------------------------------------------------------------------
+constexpr const char* WEATHER_DONGLE_NAME      = "WeatherDongle";
+constexpr uint16_t    WEATHER_COMPANY_ID       = 0xFFFF;  // manufacturer data company id
+constexpr uint32_t    WEATHER_SCAN_INTERVAL_MS = 10000;   // cadence between scan windows
+constexpr uint32_t    WEATHER_SCAN_WINDOW_MS   = 2000;    // scan duration per window
+constexpr uint32_t    WEATHER_STALE_MS         = 30000;   // >30 s -> fall back to manual
 
 // ---------------------------------------------------------------------------
 //  Display
@@ -88,7 +94,6 @@ constexpr uint8_t DISPLAY_HEIGHT   = 64;
 //  Application Timing
 // ---------------------------------------------------------------------------
 constexpr uint16_t DISPLAY_FPS        = 4;      // display refresh rate
-constexpr uint16_t ENV_SENSOR_INTERVAL_MS  = 2000;  // BME280 + compass (0.5 Hz)
 constexpr uint16_t CANT_SENSOR_INTERVAL_MS = 500;   // MPU6050 cant + compass (2 Hz)
 constexpr uint8_t  CANT_CALIB_SAMPLES = 20;   // samples to average for cant calibration
 
