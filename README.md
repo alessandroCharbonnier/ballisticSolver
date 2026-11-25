@@ -4,6 +4,15 @@ A live ballistic calculator for long-range shooting, built on the ESP32-WROOM-32
 The complete C++ ballistic engine is a from-scratch rewrite of [py_ballisticcalc](../bin/py_ballisticcalc),
 validated to within 0.3% of the Python reference across 87 scenarios and 1850 trajectory points.
 
+## v2 Roadmap (in design)
+
+v2 reworks connectivity and weather:
+
+- **Weather moves off-board** — a separate ESP32-C3 weather node (SHT31 + BMP280 + 2.13" e-paper, LiPo) samples T/P/RH and broadcasts over ESP-NOW every 10 s. The main device auto-uses live node data; when the node is absent it falls back to manual weather (set on-device or in the app). No more self-heating temperature error from the ESP32.
+- **WiFi AP / web server removed** — replaced by a BLE (NimBLE) phone app: config editor, live dashboard, remote control, app-layer PIN. BLE is on-demand (menu toggle) to preserve battery.
+- **FX True Ballistic radar proxy (planned)** — the device acts as BLE central to an FX True Ballistic radar and relays each shot (radar data + weather snapshot + timestamp) to the phone. The phone owns all data: box inventory (CSV import), magazine stacks, and per-shot logs used to train a muzzle-velocity / BC prediction model.
+- Radar protocol reverse-engineering is a prerequisite (decompile the official FX app); not yet started.
+
 ## Features
 
 - **Pure C++ ballistic engine** — header-only library with adaptive RK45 Dormand-Prince integration (float inner loop on ESP32 hardware FPU, double position accumulation), PCHIP interpolation,
@@ -15,14 +24,17 @@ validated to within 0.3% of the Python reference across 87 scenarios and 1850 tr
   - **Staged** — pre-programmed target stages (PRS-style matches, up to 20)
   - **Sensor View** — real-time display of all sensor readings
   - **Digital Level** — full-screen cant readout with graphical bubble level, "LEVEL" indicator + display inversion when within sensitivity threshold, directional tilt hints when off-level
-- **Real-time sensors** — BME280 (temperature/pressure/humidity), QMC5883P (compass heading), MPU6050 (cant/roll detection)
+  - **Weather** — view/edit temperature, pressure, humidity; auto-uses the remote weather node when present, manual values otherwise
+- **Remote weather** — T/P/RH from a separate ESP32-C3 node over ESP-NOW (auto-fallback to manual entry)
+- **On-board sensors** — QMC5883P (compass heading), MPU6050 (cant/roll detection)
 - **Calypso ultrasonic anemometer** — NMEA 0183 wind input (prepared, UART2)
 - **Cant detection** — MPU6050 accelerometer with auto-calibration, visual cant slider, display auto-invert when level
 - **SH1106 1.3" OLED** — 128×64 display with header, distance, corrections, sensor bar, scrolling menu with arrow indicators
 - **5-way navigation button** — debounced with double-press, long-press (deep sleep), and auto-repeat
-- **WiFi Access Point** — configure rifle/stages via a dark-themed web UI with captive portal
+- **BLE phone app** — configure rifle/stages, live dashboard, remote control via NimBLE GATT (app-layer PIN)
+- **FX True Ballistic radar proxy (planned)** — relays radar shot events to the phone for per-shot velocity logging
 - **Persistent storage** — NVS for rifle config, stage definitions, and cant calibration
-- **Power management** — auto-dim after 2 min inactivity (~80% brightness reduction), accelerometer-based auto deep-sleep after 10 min with no motion, ESP32 light sleep between sensor intervals, event-driven ballistic recalculation (on distance change only), BME280 forced mode, compass ODR reduced to 10 Hz, WiFi modem sleep when AP active
+- **Power management** — auto-dim after 2 min inactivity (~80% brightness reduction), accelerometer-based auto deep-sleep after 10 min with no motion, ESP32 light sleep between sensor intervals, event-driven ballistic recalculation (on distance change only), compass ODR reduced to 10 Hz, BLE/ESP-NOW on-demand
 - **Battery monitoring** — LiPo voltage via ADC1 (GPIO36) with voltage divider, piecewise-linear discharge curve, battery icon in OLED header on all screens
 - **Unit preferences** — configurable imperial/metric units for distance, velocity, weight, length, temperature, and pressure
 
@@ -34,7 +46,6 @@ validated to within 0.3% of the Python reference across 87 scenarios and 1850 tr
 |-----------|------|-------|
 | MCU | ESP32-WROOM-32 (classic) | 520KB SRAM, 4MB Flash |
 | Display | 1.3" OLED SH1106 I2C | 128×64, addr 0x3C |
-| Env sensor | BME280 | Temp/press/humidity, addr 0x76 |
 | Compass | QMC5883P (GY-271 module) | 3-axis magnetometer, addr 0x2C |
 | Accelerometer | MPU6050 | Cant/roll detection, addr 0x68 |
 | Button | 5-way digital navigation | One GPIO per direction + center |
@@ -42,6 +53,17 @@ validated to within 0.3% of the Python reference across 87 scenarios and 1850 tr
 | LED | On-board ESP32 LED | GPIO 2 |
 | Battery | 3.7V LiPo (e.g. 2000mAh) | Requires 2× 100kΩ voltage divider |
 | Resistors | 2 × 100kΩ | Voltage divider for battery ADC |
+
+### Weather Node (separate device, v2)
+
+| Component | Part | Notes |
+|-----------|------|-------|
+| MCU | ESP32-C3 SuperMini | ESP-NOW TX every 10 s, deep sleep |
+| Temp/humidity | SHT31 | ±0.2 °C, I2C |
+| Pressure | BMP280 | ±1 hPa, I2C |
+| Display | 2.13" e-paper B/W | zero idle power, sunlight-readable |
+| Power | LiPo 300–500 mAh | USB-C recharge |
+| Enclosure | ventilated, sensor exposed | swing to refresh air (no impeller) |
 
 ### Pin Map
 
@@ -56,7 +78,7 @@ validated to within 0.3% of the Python reference across 87 scenarios and 1850 tr
 | **27** | Button CENTER | Input (pull-up) | Active-low, long-press (5s) = deep sleep, double-press = back |
 | **16** | Wind UART2 RX | Input | ← Calypso TX (prepared) |
 | **17** | Wind UART2 TX | Output | → Calypso RX (prepared) |
-| **2** | Status LED | Output | Solid = WiFi AP active |
+| **2** | Status LED | Output | Solid = BLE active |
 | **36** | Battery ADC (VP) | Input | Via 100kΩ+100kΩ voltage divider, ADC1_CH0 |
 
 ### I2C Bus Addresses
@@ -64,7 +86,6 @@ validated to within 0.3% of the Python reference across 87 scenarios and 1850 tr
 | Address | Device | Protocol |
 |---------|--------|----------|
 | 0x3C | SH1106 OLED | U8g2 HW I2C |
-| 0x76 | BME280 | Adafruit BME280 |
 | 0x2C | QMC5883P | 3-axis magnetometer |
 | 0x68 | MPU6050 | Adafruit MPU6050 |
 
@@ -73,11 +94,9 @@ validated to within 0.3% of the Python reference across 87 scenarios and 1850 tr
 ```
 ESP32-WROOM-32
 ├── GPIO 21 (SDA) ──┬── OLED SDA
-│                    ├── BME280 SDA
 │                    ├── QMC5883P SDA
 │                    └── MPU6050 SDA
 ├── GPIO 22 (SCL) ──┬── OLED SCL
-│                    ├── BME280 SCL
 │                    ├── QMC5883P SCL
 │                    └── MPU6050 SCL
 ├── GPIO 32 ──── BTN UP
@@ -111,13 +130,16 @@ Ballistic Sentinel/
 │   ├── config.h            # Pin assignments, timing constants
 │   ├── display.h/.cpp      # U8g2 SH1106 OLED driver
 │   ├── input.h/.cpp        # 5-way button with debounce/repeat
-│   ├── sensors.h/.cpp      # BME280 + QMC5883P + MPU6050 polling
+│   ├── sensors.h/.cpp      # QMC5883P + MPU6050 polling (env via remote node)
 │   ├── storage.h/.cpp      # NVS persistent config
-│   ├── web_ui.h            # PROGMEM HTML/CSS/JS
-│   ├── webserver.h/.cpp    # ESPAsyncWebServer REST API
+│   ├── ble_server.h/.cpp   # NimBLE GATT server (phone) — planned
+│   ├── espnow.h/.cpp       # ESP-NOW weather receiver — planned
+│   ├── radar_link.h/.cpp   # FX True Ballistic BLE central + relay — planned
 │   ├── wind.h/.cpp         # Calypso NMEA parser
-│   ├── modes.h/.cpp        # Live/Staged/Sensor mode manager
+│   ├── modes.h/.cpp        # Live/Staged/Sensor/Weather mode manager
 │   └── main.cpp            # Firmware entry point
+├── node/                   # ESP32-C3 weather node firmware — planned
+│   └── node.ino            # SHT31 + BMP280 + e-paper, ESP-NOW TX, deep sleep
 ├── test/
 │   ├── test_native/        # Unity C++ unit tests (37 cases)
 │   └── test_compare/       # C++ output for Python comparison
@@ -205,28 +227,30 @@ build_flags =
     ...
 ```
 
-## Web Interface
+## Phone App (BLE, v2)
 
-1. Select **WiFi Toggle** from the main menu to start WiFi AP
-2. Connect to **BallisticSentinel** (password: `longrange`)
-3. Open `http://192.168.4.1` in any browser (captive portal auto-redirects)
-4. Configure rifle parameters, unit preferences, and stage targets
-5. Select **WiFi Toggle** again to turn off WiFi
+Replaces the WiFi web UI. A Flutter app (Android + iOS) connects over BLE (NimBLE)
+when **BT Toggle** is switched on from the device menu. An app-layer 4-digit PIN
+(shown on the OLED) gates config and command writes.
 
-The web UI uses a dark theme (`#0d1117` background) with green accents (`#16c79a`)
-and a Courier New monospace font. Includes unit conversion (imperial/metric),
-multi-BC configuration, powder sensitivity calculator, cant calibration, and
-correction unit selection (MOA, SMOA, MRAD, CM, CLICKS).
+- **Config editor** — rifle, units, stages, multi-BC, powder sensitivity, cant calibration
+- **Live dashboard** — weather, wind, cant, battery, current correction
+- **Remote control** — trigger cant/compass calibration, switch modes
 
-### API Endpoints
+### BLE GATT (JSON over GATT, MTU 512, versioned `{"v":1}`)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/` | Web configuration UI |
-| GET | `/api/config` | Current rifle + stage config (JSON) |
-| POST | `/api/save` | Save rifle + stage config |
-| POST | `/api/wifi/off` | Shut down WiFi AP |
-| POST | `/api/cant/calibrate` | Start cant auto-calibration |
+| Characteristic | Access | Description |
+|----------------|--------|-------------|
+| `config` | Read/Write | Rifle + stage config (JSON) |
+| `telemetry` | Notify | Live sensor/weather/correction (JSON, ~1 s) |
+| `command` | Write | Remote control commands (JSON) |
+| `status` | Notify | Command acks + status |
+
+### Radar proxy (planned)
+
+| Characteristic | Access | Description |
+|----------------|--------|-------------|
+| `shot` | Notify | Relayed radar shot: radar data + weather snapshot + timestamp |
 
 ## Test Coverage
 
@@ -282,13 +306,13 @@ Tolerance: max(0.65"/500yd × distance, 0.3% of absolute value)
 - Single rifle profile only — serious limitation; PRS shooters switch rifles/loads between stages or seasons
 - Wind: manual speed + direction only — oversimplified; no crosswind component decomposition shown to user
 - Calypso anemometer: prepared but not connected — the most valuable sensor for the use case is the one that doesn't work yet
-- WiFi AP hardcoded credentials — SSID "BallisticSentinel" / password "longrange"; anyone at the range can connect and modify config
+- ~~WiFi AP hardcoded credentials~~ — resolved by v2: WiFi AP removed, BLE app-layer PIN instead
 - 128×64 monochrome OLED — barely enough pixels for a ballistic HUD; hard to read in bright sun. Acceptable for V1 but limiting
-- No shot logging / history — can't review previous shots, stages, or environmental conditions after the fact
-- No BLE support — BLE would enable Kestrel data link and phone app integration with far less power than WiFi
+- ~~No shot logging~~ — planned via FX radar proxy + per-shot logs in the phone app
+- ~~No BLE support~~ — resolved by v2: NimBLE phone app. Kestrel BLE data link still open
 - Stage names limited to 16 chars — "Stage 3 - 487yd Barricade" doesn't fit; minor but annoying for match prep
 - No truing / velocity validation — no way to true the BC or MV from observed impacts; experienced shooters rely on this heavily
-- Latitude set manually via web UI — should auto-populate from phone GPS via the web interface
+- Latitude set manually — should auto-populate from phone GPS via the phone app
 
 ### Potential Features
 
@@ -318,7 +342,7 @@ These features address the real-world error budget identified via physics audit 
 | 7 | Larger display or e-ink option | Hobbyists shoot in bright sun at benches. E-ink is sunlight-readable and ultra-low power. |
 | 8 | Unit conversion calculator | Quick MOA↔MRAD, yards↔meters, fps↔m/s. Hobbyists constantly convert between systems. |
 | 9 | BLE phone app | Richer UI for config, real-time mirroring, shot log export, GPS feed — all over low-power BLE. |
-| 10 | OTA firmware updates | Hobby users won't flash firmware via USB. WiFi OTA update from web UI is essential for adoption. |
+| 10 | OTA firmware updates | Hobby users won't flash firmware via USB. BLE OTA update from the phone app is essential for adoption. |
 | 11 | Onboard tutorial / help screens | Brief "how to use" on first boot or from menu. Reduces learning curve. |
 | 12 | Target angular size / mil-ranging | Calculate target size in mils for rangefinder-less verification or unknown-distance stages (UKD). |
 | 13 | Bullet library / presets | Built-in database of common bullets (Sierra, Hornady, Berger) with BC + dimensions pre-filled. Huge time saver. |
@@ -346,6 +370,7 @@ These features address the real-world error budget identified via physics audit 
 | 1.2.0 | 2026-03-13 | New Digital Level mode with full-screen cant readout, graphical bubble level, sensitivity zone marks, "LEVEL" indicator with display inversion, and directional tilt hints. Scrolling main menu with up/down arrow indicators (supports 5+ items without shrinking text). WiFi toggle moved to last menu position |
 | 1.3.0 | 2026-03-14 | Expanded comparison test suite: 75 scenarios / 1578 trajectory points (up from 8 / 173). Added .22 LR competition bullets (12 brands, RA4 drag table), centerfire competition & handloaded profiles across 6.5 CM, 6mm CM, .308 Win, .338 LM, .300 PRC, .375 CT, .50 BMG. Weather matrix (hot/cold/altitude/tropical/desert/mountain), wind angles (head/tail/quartering/gust), and competition distance ranges (King of 22LR, PRS, King of 1 Mile, King of 2 Miles) |
 | 1.4.0 | 2026-03-14 | Added multi-BC and powder sensitivity comparison scenarios (12 new, 87 total / 1850 points). 6 multi-BC scenarios with velocity-stepped BCs across 5 calibers. 6 powder sensitivity scenarios testing MV adjustment for cold/hot conditions. Both features now validated in C++ vs Python comparison suite |
+| 2.0.0 | planned | Remove WiFi AP/web server; add BLE phone app (NimBLE), ESP-NOW weather node, Weather menu, manual weather, FX True Ballistic radar proxy + per-shot logging |
 
 ## License
 

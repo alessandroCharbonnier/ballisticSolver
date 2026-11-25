@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Planned (not yet implemented — v2)
+- Remove WiFi AP / web server (`ESPAsyncWebServer`, `DNSServer`, `web_ui.h`).
+- Add BLE phone app (NimBLE, JSON-over-GATT, app-layer PIN): config editor, live dashboard, remote control.
+- Add remote weather node (ESP32-C3 + SHT31 + BMP280 + e-paper) over ESP-NOW; auto-fallback to manual weather.
+- Add FX True Ballistic radar proxy (BLE central + shot relay) and per-shot velocity/BC logging on the phone.
+
 ### Added
 - **Magnetometer (compass) calibration** — hard iron offset and soft iron scale correction for QMC5883P. Calibration is triggered from the Sensor View screen: press CENTER to start, rotate the device 360° on a flat surface, press CENTER again to finish. Calibration values (offset X/Y, scale X/Y) are persisted in NVS and reloaded on boot. Fixes incorrect heading readings and non-linear rotation caused by nearby electronics (ESP32, OLED, wires).
 
