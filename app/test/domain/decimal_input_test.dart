@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ballistic_sentinel/domain/decimal_input.dart';
+import 'package:borecore_app/domain/decimal_input.dart';
 
 void main() {
   group('M2 decimal parser', () {

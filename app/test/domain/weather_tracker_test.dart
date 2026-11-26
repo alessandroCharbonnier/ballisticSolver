@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ballistic_sentinel/domain/clock.dart';
-import 'package:ballistic_sentinel/domain/models.dart';
-import 'package:ballistic_sentinel/domain/weather_tracker.dart';
+import 'package:borecore_app/domain/clock.dart';
+import 'package:borecore_app/domain/models.dart';
+import 'package:borecore_app/domain/weather_tracker.dart';
 
 void main() {
   group('T5b weather tracker', () {

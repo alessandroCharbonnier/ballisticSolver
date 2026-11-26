@@ -1,4 +1,12 @@
-# Ballistic Sentinel
+# BoreCore One
+
+**BoreCore** product family:
+
+| Part | Name | What it is |
+|------|------|------------|
+| Rifle-mounted unit | **BoreCore One** | This firmware — live ballistic calculator, OLED HUD, BLE peripheral |
+| Weather dongle | **BoreCore Air** | ESP32 + BME280 + SH1106 OLED, BLE beacon (`re/weather_dongle/`) |
+| Phone app | **BoreCore Link** | Flutter (Android) app (`app/`) — config, telemetry, radar capture, data set |
 
 A live ballistic calculator for long-range shooting, built on the ESP32-WROOM-32 platform.
 The complete C++ ballistic engine is a from-scratch rewrite of [py_ballisticcalc](../bin/py_ballisticcalc),
@@ -114,7 +122,7 @@ ESP32-WROOM-32
 ## Software Architecture
 
 ```
-Ballistic Sentinel/
+BoreCore One/
 ├── lib/ballistic/          # Header-only C++ ballistic library
 │   ├── ballistic.h         # Umbrella include
 │   ├── constants.h         # Physical constants, unit conversions
@@ -179,14 +187,14 @@ for (auto& pt : traj) {
 ### Flash Firmware
 
 ```bash
-cd "Ballistic Sentinel"
+cd "BoreCore One"
 pio run -e upesy_wroom -t upload
 ```
 
 ### Run Native Tests
 
 ```bash
-cd "Ballistic Sentinel"
+cd "BoreCore One"
 pio test -e native
 ```
 

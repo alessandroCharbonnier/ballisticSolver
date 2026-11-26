@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ballistic_sentinel/domain/slots.dart';
+import 'package:borecore_app/domain/slots.dart';
 
 void main() {
   group('T3 slot numbering', () {

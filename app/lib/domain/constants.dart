@@ -50,8 +50,8 @@ class AppConstants {
   static const Duration scanRestartInterval = Duration(minutes: 5);
 
   // Files and backup (section 12)
-  static const String dbFileName = 'sentinel.db';
-  static const String demoDbFileName = 'sentinel_demo.db';
+  static const String dbFileName = 'borecore.db';
+  static const String demoDbFileName = 'borecore_demo.db';
   static const String simulatorFlagFileName = 'simulator.flag';
   static const String backupFolderName = 'backups';
   static const int maxBackups = 20;

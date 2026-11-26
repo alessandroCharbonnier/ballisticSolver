@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ballistic_sentinel/domain/weather_tracker.dart';
+import 'package:borecore_app/domain/weather_tracker.dart';
 
 import 'helpers.dart';
 

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ballistic_sentinel/domain/models.dart';
-import 'package:ballistic_sentinel/domain/shot_context.dart';
+import 'package:borecore_app/domain/models.dart';
+import 'package:borecore_app/domain/shot_context.dart';
 
 Shot _shot(int index, bool voided, DateTime firedAt) => Shot(
       shotIndex: index,

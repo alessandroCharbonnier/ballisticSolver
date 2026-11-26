@@ -1,5 +1,5 @@
-name: ballistic_sentinel
-description: "Ballistic Sentinel phone app: measure cartridges, capture radar shots, export CSV."
+name: borecore_app
+description: "BoreCore Link phone app: measure cartridges, capture radar shots, export CSV."
 publish_to: 'none'
 version: 0.2.0+2
 

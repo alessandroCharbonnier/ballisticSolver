@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ballistic_sentinel/data/magazine_repository.dart';
-import 'package:ballistic_sentinel/data/shot_repository.dart';
-import 'package:ballistic_sentinel/domain/weather_tracker.dart';
+import 'package:borecore_app/data/magazine_repository.dart';
+import 'package:borecore_app/data/shot_repository.dart';
+import 'package:borecore_app/domain/weather_tracker.dart';
 
 import 'helpers.dart';
 

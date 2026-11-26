@@ -27,7 +27,6 @@ from typing import Dict, List, Tuple
 
 # ── Locate project root ────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SENTINEL_DIR = PROJECT_ROOT / "Ballistic Sentinel"
 
 # ── Import py_ballisticcalc ─────────────────────────────────────────────────
 sys.path.insert(0, str(PROJECT_ROOT / "bin"))
@@ -784,7 +783,7 @@ def compare_rows(
 
 def main():
     print("=" * 70)
-    print("  Ballistic Sentinel — C++ vs py_ballisticcalc Comparison Test")
+    print("  BoreCore One — C++ vs py_ballisticcalc Comparison Test")
     print("=" * 70)
 
     # 1. Compute Python reference trajectories

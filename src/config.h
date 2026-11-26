@@ -1,6 +1,6 @@
 #pragma once
 /// @file config.h
-/// @brief Hardware pin assignments and system constants for Ballistic Sentinel.
+/// @brief Hardware pin assignments and system constants for BoreCore One.
 ///
 /// ESP32-WROOM-32 pin map:
 ///
@@ -73,7 +73,7 @@ constexpr uint8_t PIN_LED          = 2;
 // ---------------------------------------------------------------------------
 //  BLE (NimBLE peripheral — phone config + telemetry)
 // ---------------------------------------------------------------------------
-constexpr const char* BLE_DEVICE_NAME = "BallisticSentinel";
+constexpr const char* BLE_DEVICE_NAME = "BoreCoreOne";
 
 // ---------------------------------------------------------------------------
 //  Weather dongle (BLE beacon, read passively via scan)

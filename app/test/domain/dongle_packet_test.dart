@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ballistic_sentinel/domain/dongle_packet.dart';
+import 'package:borecore_app/domain/dongle_packet.dart';
 
 List<int> _payload({
   double temp = 21.4,

@@ -7,19 +7,19 @@ import 'screens/home_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final services = await AppServices.create();
-  runApp(BallisticSentinelApp(initialServices: services));
+  runApp(BoreCoreApp(initialServices: services));
 }
 
-class BallisticSentinelApp extends StatefulWidget {
-  const BallisticSentinelApp({super.key, required this.initialServices});
+class BoreCoreApp extends StatefulWidget {
+  const BoreCoreApp({super.key, required this.initialServices});
 
   final AppServices initialServices;
 
   @override
-  State<BallisticSentinelApp> createState() => _BallisticSentinelAppState();
+  State<BoreCoreApp> createState() => _BoreCoreAppState();
 }
 
-class _BallisticSentinelAppState extends State<BallisticSentinelApp> {
+class _BoreCoreAppState extends State<BoreCoreApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
   late AppServices _services;
 
@@ -45,7 +45,7 @@ class _BallisticSentinelAppState extends State<BallisticSentinelApp> {
       services: _services,
       onRebuild: _rebuildServices,
       child: MaterialApp(
-        title: 'Ballistic Sentinel',
+        title: 'BoreCore Link',
         debugShowCheckedModeBanner: false,
         navigatorKey: _navigatorKey,
         theme: ThemeData(

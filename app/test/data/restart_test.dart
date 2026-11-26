@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ballistic_sentinel/data/app_database.dart';
+import 'package:borecore_app/data/app_database.dart';
 
 import 'helpers.dart';
 
@@ -10,8 +10,8 @@ void main() {
   test('T6a nothing is lost on restart (L6)', () async {
     ensureSqfliteFfi();
 
-    final dir = await Directory.systemTemp.createTemp('sentinel_test');
-    final path = '${dir.path}${Platform.pathSeparator}sentinel.db';
+    final dir = await Directory.systemTemp.createTemp('borecore_test');
+    final path = '${dir.path}${Platform.pathSeparator}borecore.db';
 
     var ctx = TestContext(AppDatabase(path));
     await ctx.db.database;

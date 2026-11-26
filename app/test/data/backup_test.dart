@@ -2,9 +2,9 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ballistic_sentinel/data/app_database.dart';
-import 'package:ballistic_sentinel/data/backup_service.dart';
-import 'package:ballistic_sentinel/domain/weather_tracker.dart';
+import 'package:borecore_app/data/app_database.dart';
+import 'package:borecore_app/data/backup_service.dart';
+import 'package:borecore_app/domain/weather_tracker.dart';
 
 import 'helpers.dart';
 
@@ -13,8 +13,8 @@ const _none = WeatherForShot(source: 'none');
 void main() {
   test('T6b backup round trip restores the data at backup time', () async {
     ensureSqfliteFfi();
-    final dir = await Directory.systemTemp.createTemp('sentinel_backup_test');
-    final dbPath = '${dir.path}${Platform.pathSeparator}sentinel.db';
+    final dir = await Directory.systemTemp.createTemp('borecore_backup_test');
+    final dbPath = '${dir.path}${Platform.pathSeparator}borecore.db';
 
     final ctx = TestContext(AppDatabase(dbPath));
     await ctx.db.database;
@@ -61,8 +61,8 @@ void main() {
   test('T6b a file that is not a backup is rejected and changes nothing',
       () async {
     ensureSqfliteFfi();
-    final dir = await Directory.systemTemp.createTemp('sentinel_backup_test');
-    final dbPath = '${dir.path}${Platform.pathSeparator}sentinel.db';
+    final dir = await Directory.systemTemp.createTemp('borecore_backup_test');
+    final dbPath = '${dir.path}${Platform.pathSeparator}borecore.db';
 
     final ctx = TestContext(AppDatabase(dbPath));
     await ctx.db.database;
@@ -76,7 +76,7 @@ void main() {
         BackupService(db: ctx.db, dbPath: dbPath, documentsPath: dir.path);
     final error = await backup.validateBackupFile(notBackup.path);
     expect(error, isNotNull);
-    expect(error, contains('not a Ballistic Sentinel backup'));
+    expect(error, contains('not a BoreCore Link backup'));
 
     // Nothing changed: the box and its cartridge are still there.
     expect((await ctx.boxes.getCartridges(box.boxId)).length, 50);

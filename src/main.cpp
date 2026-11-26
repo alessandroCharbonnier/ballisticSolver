@@ -1,5 +1,5 @@
 /// @file main.cpp
-/// @brief Ballistic Sentinel — entry point.
+/// @brief BoreCore One — entry point.
 ///
 /// Ties together all sub-systems: display, input, sensors, wind, storage,
 /// ballistic calculator (modes), BLE (phone config + weather dongle).
@@ -118,7 +118,7 @@ static void updateDisplay() {
 
 void setup() {
     Serial.begin(115200);
-    Serial.println("\n=== Ballistic Sentinel ===");
+    Serial.println("\n=== BoreCore One ===");
 
     // I2C bus
     Wire.begin(cfg::PIN_I2C_SDA, cfg::PIN_I2C_SCL);

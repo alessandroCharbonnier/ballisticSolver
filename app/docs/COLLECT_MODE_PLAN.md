@@ -4,7 +4,7 @@ Audience: the developer or coding agent who implements this. Read the whole file
 
 ## 1. Goal and scope
 
-The Ballistic Sentinel phone app (Flutter, Android) must let one shooter build a clean data set that links each .22LR cartridge's bench measurements to the velocity the radar measured when it was fired. The data set is exported as CSV and used on a PC to train a model (see `re/ML_PROTOTYPE_SPEC.md`).
+The BoreCore Link phone app (Flutter, Android) must let one shooter build a clean data set that links each .22LR cartridge's bench measurements to the velocity the radar measured when it was fired. The data set is exported as CSV and used on a PC to train a model (see `re/ML_PROTOTYPE_SPEC.md`).
 
 Phase 1 delivers three things:
 
@@ -22,7 +22,7 @@ Everything not listed here is out of scope (section 16).
 2. When a "Done when" item cannot be met, or the plan looks wrong or incomplete, stop and ask the user. Report what you tried and what happened.
 3. Build exactly what this file describes.
 4. Before calling any function of a plugin, open the plugin's source and read the real signature. Plugin sources are in `%LOCALAPPDATA%\Pub\Cache\hosted\pub.dev\<package>-<version>\lib`. Plugin APIs in this Flutter version differ from older tutorials.
-5. `Z:\embedded\ballisticCalc\app` is the source of truth. `C:\Users\haloa\dev\ballistic_sentinel_app` is a disposable build copy. Edit on Z:, build and test on C: (section 4). Delete files only inside the C: copy.
+5. `Z:\embedded\ballisticCalc\app` is the source of truth. `C:\Users\haloa\dev\borecore_app` is a disposable build copy. Edit on Z:, build and test on C: (section 4). Delete files only inside the C: copy.
 6. Z: is a network drive and a file write can fail silently. After creating files, check that each one exists with `Test-Path`.
 7. Before writing tests, read `c:\Users\haloa\.copilot\instructions\testing.instructions.md` and follow it.
 8. Import Material widgets from `package:material_ui/material_ui.dart`. In this Flutter version `package:flutter/material.dart` is deprecated.
@@ -53,7 +53,7 @@ Use these words in code, UI text and commit messages.
 ## 4. Environment and commands
 
 - Target device: AYN Thor (Android, landscape screen), adb serial `d3cb015a`.
-- Flutter 3.50.1 at `C:\Users\haloa\flutter`. Package id `com.ballisticsentinel.ballistic_sentinel`.
+- Flutter 3.50.1 at `C:\Users\haloa\flutter`. Package id `com.borecore.borecore_one`.
 - Android builds fail from the Z: network drive (Gradle cannot read it). Always build from the C: copy.
 - Use the JDK that ships with Android Studio. The system JDK 25 is too new for Gradle.
 
@@ -61,7 +61,7 @@ PowerShell commands. Check the current folder with `Get-Location` before any `fl
 
 ```powershell
 $SRC     = 'Z:\embedded\ballisticCalc\app'
-$BUILD   = 'C:\Users\haloa\dev\ballistic_sentinel_app'
+$BUILD   = 'C:\Users\haloa\dev\borecore_app'
 $FLUTTER = 'C:\Users\haloa\flutter\bin\flutter.bat'
 $ADB     = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
@@ -83,7 +83,7 @@ Set-Location $BUILD
 & $FLUTTER test
 & $FLUTTER build apk --debug
 & $ADB install -r "$BUILD\build\app\outputs\flutter-apk\app-debug.apk"
-& $ADB shell am start -n com.ballisticsentinel.ballistic_sentinel/.MainActivity
+& $ADB shell am start -n com.borecore.borecore_one/.MainActivity
 ```
 
 ## 5. Starting point
@@ -462,7 +462,7 @@ The file is written to the temporary folder as `sentinel_shots_<yyyyMMdd_HHmmss>
 
 1. Ask for confirmation: "This replaces all data in the app with the content of the backup. A backup of the current data is made first."
 2. Let the user pick a file.
-3. Check the file: it opens as a SQLite database, its schema version is 1, and it contains the `shots` table. If not, show "This file is not a Ballistic Sentinel backup" and change nothing.
+3. Check the file: it opens as a SQLite database, its schema version is 1, and it contains the `shots` table. If not, show "This file is not a BoreCore Link backup" and change nothing.
 4. Make a backup of the current data.
 5. Close the database, replace the file with the picked one, open it again.
 6. Return to Home.

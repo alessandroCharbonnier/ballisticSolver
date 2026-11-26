@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ballistic_sentinel/domain/csv.dart';
+import 'package:borecore_app/domain/csv.dart';
 
 void main() {
   group('T6c CSV', () {

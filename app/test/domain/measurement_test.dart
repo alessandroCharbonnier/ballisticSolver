@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ballistic_sentinel/domain/measurement.dart';
+import 'package:borecore_app/domain/measurement.dart';
 
 void main() {
   group('M3 measurement warnings', () {

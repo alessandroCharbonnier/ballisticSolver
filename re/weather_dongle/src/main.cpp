@@ -65,7 +65,7 @@ static void updateAdvertisement(float t, float p, float h) {
       std::string(reinterpret_cast<char*>(mfr), sizeof(mfr)));
 
   NimBLEAdvertisementData scanData;
-  scanData.setName("WeatherDongle");
+  scanData.setName("BoreCoreAir");
 
   adv->stop();
   adv->setAdvertisementData(advData);
@@ -96,7 +96,7 @@ void setup() {
     Serial.println("[dongle] BME280 NOT FOUND (0x76)");
   }
 
-  NimBLEDevice::init("WeatherDongle");
+  NimBLEDevice::init("BoreCoreAir");
   adv = NimBLEDevice::getAdvertising();
   Serial.println("[dongle] BLE beacon ready");
 }
@@ -109,7 +109,7 @@ void loop() {
 
     u8g2.clearBuffer();
     u8g2.setCursor(0, 10);
-    u8g2.print("Weather dongle");
+    u8g2.print("BoreCore Air");
 
     if (s_bme_ok) {
       bme.takeForcedMeasurement();

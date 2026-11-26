@@ -1,6 +1,6 @@
-# ballistic_sentinel (phone app)
+# BoreCore Link (phone app)
 
-The Ballistic Sentinel phone app (Flutter, Android) lets one shooter build a
+The BoreCore Link phone app (Flutter, Android) lets one shooter build a
 clean data set that links each .22LR cartridge's bench measurements (weight,
 rim thickness) to the velocity the FX True Ballistic radar measured when it
 was fired. The data set is exported as CSV and used on a PC to train a model.
@@ -28,7 +28,7 @@ lib/
   controllers/  one ChangeNotifier per screen
   screens/      one file per screen
   widgets/      box_grid.dart, magazine_stack.dart, weather_chip.dart, ...
-  ble/          existing Sentinel device code (unchanged, used in phase 2)
+  ble/          existing BoreCore One device code (unchanged, used in phase 2)
 ```
 
 ## Building
@@ -38,7 +38,7 @@ builds fail from the Z: network drive. Always build from a local copy:
 
 ```powershell
 $SRC     = 'Z:\embedded\ballisticCalc\app'
-$BUILD   = 'C:\Users\haloa\dev\ballistic_sentinel_app'
+$BUILD   = 'C:\Users\haloa\dev\borecore_app'
 $FLUTTER = 'C:\Users\haloa\flutter\bin\flutter.bat'
 $ADB     = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
@@ -55,7 +55,7 @@ Set-Location $BUILD
 & $FLUTTER test
 & $FLUTTER build apk --debug
 & $ADB install -r "$BUILD\build\app\outputs\flutter-apk\app-debug.apk"
-& $ADB shell am start -n com.ballisticsentinel.ballistic_sentinel/.MainActivity
+& $ADB shell am start -n com.borecore.borecore_one/.MainActivity
 ```
 
 Target device: AYN Thor (Android, landscape), adb serial `d3cb015a`.

@@ -1,4 +1,4 @@
-package com.ballisticsentinel.ballistic_sentinel
+package com.borecore.borecore_one
 
 import io.flutter.embedding.android.FlutterActivity
 

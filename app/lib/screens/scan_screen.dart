@@ -4,7 +4,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import '../ble/gatt.dart';
 import 'device_screen.dart';
 
-/// Device discovery: scan for the Ballistic Sentinel, then connect.
+/// Device discovery: scan for the BoreCore One, then connect.
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
 
@@ -57,7 +57,7 @@ class _ScanScreenState extends State<ScanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Ballistic Sentinel')),
+      appBar: AppBar(title: const Text('BoreCore One')),
       body: Column(
         children: [
           Padding(

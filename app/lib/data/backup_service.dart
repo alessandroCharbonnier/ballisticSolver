@@ -1,6 +1,6 @@
 /// Backup and import (sections 12.2 and 12.3).
 ///
-/// A backup is a copy of the database file named `sentinel_backup_<time>.db`
+/// A backup is a copy of the database file named `borecore_backup_<time>.db`
 /// in a `backups` folder inside the app's documents folder. Automatic backups
 /// stay on the phone; only an exported backup protects against a lost phone.
 library;
@@ -34,7 +34,7 @@ class BackupService {
     await db.close();
     try {
       await Directory(folderPath).create(recursive: true);
-      final name = 'sentinel_backup_${_stamp(time)}.db';
+      final name = 'borecore_backup_${_stamp(time)}.db';
       final destination = p.join(folderPath, name);
       await File(dbPath).copy(destination);
       return destination;
@@ -108,11 +108,11 @@ class BackupService {
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'shots'",
       );
       if (version != 1 || shotsTable.isEmpty) {
-        return 'This file is not a Ballistic Sentinel backup';
+        return 'This file is not a BoreCore Link backup';
       }
       return null;
     } catch (_) {
-      return 'This file is not a Ballistic Sentinel backup';
+      return 'This file is not a BoreCore Link backup';
     } finally {
       await temp?.close();
     }

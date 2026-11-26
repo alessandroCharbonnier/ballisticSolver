@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ballistic_sentinel/domain/radar_packet.dart';
+import 'package:borecore_app/domain/radar_packet.dart';
 
 List<int> _packet(int freq, double bc) {
   final b = ByteData(9);

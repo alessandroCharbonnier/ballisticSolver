@@ -1,6 +1,6 @@
 /// Seeds the demo database (section 12.4).
 ///
-/// When `sentinel_demo.db` is created it is filled with one product "Demo",
+/// When `borecore_demo.db` is created it is filled with one product "Demo",
 /// one lot "DEMO" and one box `D01` whose 50 cartridges all have measurements
 /// (weight between 3.30 and 3.40 g, rim thickness between 1.00 and 1.08 mm).
 library;

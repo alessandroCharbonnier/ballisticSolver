@@ -3,13 +3,13 @@ library;
 
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import 'package:ballistic_sentinel/data/app_database.dart';
-import 'package:ballistic_sentinel/data/boxes_repository.dart';
-import 'package:ballistic_sentinel/data/magazine_repository.dart';
-import 'package:ballistic_sentinel/data/session_repository.dart';
-import 'package:ballistic_sentinel/data/shot_recorder.dart';
-import 'package:ballistic_sentinel/data/shot_repository.dart';
-import 'package:ballistic_sentinel/domain/models.dart';
+import 'package:borecore_app/data/app_database.dart';
+import 'package:borecore_app/data/boxes_repository.dart';
+import 'package:borecore_app/data/magazine_repository.dart';
+import 'package:borecore_app/data/session_repository.dart';
+import 'package:borecore_app/data/shot_recorder.dart';
+import 'package:borecore_app/data/shot_repository.dart';
+import 'package:borecore_app/domain/models.dart';
 
 bool _ffiInitialized = false;
 

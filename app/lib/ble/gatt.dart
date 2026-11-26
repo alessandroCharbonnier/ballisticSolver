@@ -1,4 +1,4 @@
-/// GATT contract for the Ballistic Sentinel device (`src/ble_server.cpp`).
+/// GATT contract for the BoreCore One device (`src/ble_server.cpp`).
 ///
 /// The device exposes one service with four characteristics; config and
 /// telemetry are JSON documents. Config/command writes are gated by a 4-digit
@@ -13,7 +13,7 @@ class Gatt {
   static const String status = '19b10004-e8f2-537e-4f6c-d104768a1214';
 
   /// Advertised local name of the device.
-  static const String deviceName = 'BallisticSentinel';
+  static const String deviceName = 'BoreCoreOne';
 }
 
 // ── Lenient JSON coercion helpers ───────────────────────────────────────────

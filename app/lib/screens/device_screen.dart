@@ -5,7 +5,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../ble/gatt.dart';
-import '../ble/sentinel_device.dart';
+import '../ble/borecore_device.dart';
 
 /// Connected-device screen: live dashboard + config editor, gated by the
 /// device PIN for writes.
@@ -19,7 +19,7 @@ class DeviceScreen extends StatefulWidget {
 }
 
 class _DeviceScreenState extends State<DeviceScreen> {
-  SentinelDevice? _dev;
+  BoreCoreDevice? _dev;
   bool _connecting = true;
   String? _error;
   bool _authed = false;
@@ -61,7 +61,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
       _error = null;
     });
     try {
-      final d = SentinelDevice(widget.device);
+      final d = BoreCoreDevice(widget.device);
       await d.connectAndDiscover();
       _telSub = d.telemetry.listen((t) {
         if (mounted) setState(() => _telemetry = t);
@@ -234,7 +234,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(widget.device.platformName.isEmpty
-              ? 'Ballistic Sentinel'
+              ? 'BoreCore One'
               : widget.device.platformName),
           actions: [
             IconButton(

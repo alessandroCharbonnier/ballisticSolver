@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ballistic_sentinel/domain/constants.dart';
+import 'package:borecore_app/domain/constants.dart';
 
 import 'helpers.dart';
 

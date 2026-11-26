@@ -1,4 +1,4 @@
-/// Thin wrapper around a connected Ballistic Sentinel device.
+/// Thin wrapper around a connected BoreCore One device.
 ///
 /// Handles connection + service discovery, config read/write, command writes,
 /// and the telemetry/status notification streams.
@@ -11,8 +11,8 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import 'gatt.dart';
 
-class SentinelDevice {
-  SentinelDevice(this.device);
+class BoreCoreDevice {
+  BoreCoreDevice(this.device);
 
   final BluetoothDevice device;
 
@@ -47,7 +47,7 @@ class SentinelDevice {
     final service = device.servicesList.firstWhere(
       (s) => s.uuid == Guid(Gatt.service),
       orElse: () => throw StateError(
-          'Service ${Gatt.service} not found — is this the Ballistic Sentinel?'),
+          'Service ${Gatt.service} not found — is this the BoreCore One?'),
     );
 
     _config = _char(service, Gatt.config);

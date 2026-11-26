@@ -14,7 +14,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ballistic Sentinel'),
+        title: const Text('BoreCore Link'),
         actions: [
           const SimulatorBadge(),
           IconButton(

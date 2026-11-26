@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Product naming (BoreCore brand)** — the umbrella brand is now **BoreCore**, with three named parts: **BoreCore One** (rifle-mounted unit), **BoreCore Air** (BLE weather dongle), and **BoreCore Link** (phone app). Renamed the BLE advertised names (`BoreCoreOne`, `BoreCoreAir`), firmware banner/serial output, app title/labels/error strings, Dart package (`borecore_app`), Android `applicationId`/`namespace` (`com.borecore.borecore_one`), module files, generated DB/CSV/backup file prefixes (`borecore.db`, `borecore_shots_*.csv`, `borecore_backup_*.db`), and docs. **Breaking:** existing app installs must be re-paired (new BLE name) and the new package id installs as a separate app.
+
 ### Added
 - **Collect mode app, phase 1 (v0.2.0)** — the Flutter phone app (`app/`) now supports the full bench-to-range data collection workflow: measure cartridges box by box on a grid (weight + rim thickness, with plausibility/median warnings), load a magazine by tapping and capture radar shots with automatic weather and barrel-state recording, review sessions, export CSV, and back up/restore the database. Includes the FX radar BLE source (fixed `onValueReceived` reconnect replay defect), the weather dongle BLE source, a simulator mode with a demo database, and a reusable box-grid widget. See `app/docs/COLLECT_MODE_PLAN.md`.
 - **Flutter phone app (first increment)** — `app/`: BLE scan/connect + 4-digit PIN auth, live telemetry dashboard, config editor (rifle/stages/manual weather), and FX True Ballistic radar shot capture (velocity + BC logging, see `re/RADAR_PROTOCOL.md`).

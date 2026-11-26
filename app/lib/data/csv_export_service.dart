@@ -90,7 +90,7 @@ class CsvExportService {
     int? sessionId,
   }) async {
     final rows = await buildRows(sessionId: sessionId);
-    final name = 'sentinel_shots_${_stamp(now)}.csv';
+    final name = 'borecore_shots_${_stamp(now)}.csv';
     final file = File(p.join(tempFolder, name));
     await file.writeAsString(buildCsv(rows), encoding: utf8);
     return file.path;
