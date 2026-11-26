@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Flutter phone app (first increment)** — `app/`: BLE scan/connect + 4-digit PIN auth, live telemetry dashboard, config editor (rifle/stages/manual weather), and FX True Ballistic radar shot capture (velocity + BC logging, see `re/RADAR_PROTOCOL.md`).
 - **BLE phone peripheral (v2)** — `src/ble_server.{h,cpp}`: NimBLE GATT server with JSON-over-GATT config read/write, live telemetry notify, and command writes, gated by a 4-digit app-layer PIN (shown on the OLED). Advertising is toggled from the menu ("BT Toggle"). Service UUID `19B10000-E8F2-537E-4F6C-D104768A1214`.
 - **Weather dongle scan (v2)** — the device passively scans for the BLE weather dongle beacon (`re/weather_dongle/`) every 10 s (2 s window) and feeds T/P/RH into the sensor model; >30 s stale falls back to manual weather. New "Weather" menu item + read-only weather screen.
 - **Weather dongle firmware (v2)** — `re/weather_dongle/`: ESP32 + BME280 + SH1106 OLED, broadcasts T/P/RH as a BLE manufacturer-data beacon (company 0xFFFF) every 10 s.

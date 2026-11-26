@@ -1,6 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
-import 'screens/scan_screen.dart';
+import 'screens/home_screen.dart';
 
 void main() {
   runApp(const BallisticSentinelApp());
@@ -21,7 +21,7 @@ class BallisticSentinelApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const ScanScreen(),
+      home: const HomeScreen(),
     );
   }
 }

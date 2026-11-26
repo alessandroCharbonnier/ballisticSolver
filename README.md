@@ -236,6 +236,7 @@ Replaces the WiFi web UI. A Flutter app (Android + iOS) connects over BLE when
 - **Config editor** — rifle, units, stages, multi-BC, powder sensitivity, cant calibration
 - **Live dashboard** — weather, wind, cant, battery, current correction
 - **Remote control** — trigger cant calibration (more commands planned)
+- **Radar shot capture** — connect to the FX True Ballistic radar and log velocity + BC per shot
 
 ### BLE GATT (JSON over GATT)
 
