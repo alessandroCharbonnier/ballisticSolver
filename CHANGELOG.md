@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Collect mode app, phase 1 (v0.2.0)** — the Flutter phone app (`app/`) now supports the full bench-to-range data collection workflow: measure cartridges box by box on a grid (weight + rim thickness, with plausibility/median warnings), load a magazine by tapping and capture radar shots with automatic weather and barrel-state recording, review sessions, export CSV, and back up/restore the database. Includes the FX radar BLE source (fixed `onValueReceived` reconnect replay defect), the weather dongle BLE source, a simulator mode with a demo database, and a reusable box-grid widget. See `app/docs/COLLECT_MODE_PLAN.md`.
 - **Flutter phone app (first increment)** — `app/`: BLE scan/connect + 4-digit PIN auth, live telemetry dashboard, config editor (rifle/stages/manual weather), and FX True Ballistic radar shot capture (velocity + BC logging, see `re/RADAR_PROTOCOL.md`).
 - **BLE phone peripheral (v2)** — `src/ble_server.{h,cpp}`: NimBLE GATT server with JSON-over-GATT config read/write, live telemetry notify, and command writes, gated by a 4-digit app-layer PIN (shown on the OLED). Advertising is toggled from the menu ("BT Toggle"). Service UUID `19B10000-E8F2-537E-4F6C-D104768A1214`.
 - **Weather dongle scan (v2)** — the device passively scans for the BLE weather dongle beacon (`re/weather_dongle/`) every 10 s (2 s window) and feeds T/P/RH into the sensor model; >30 s stale falls back to manual weather. New "Weather" menu item + read-only weather screen.
